@@ -1,0 +1,6 @@
+@ForexRateAlerter_HostAddress = http://localhost:5105
+
+GET {{ForexRateAlerter_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
