@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "5000:80"
+      - "5001:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=db;Database=ForexRateAlerterDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=true
+      - Jwt__Key=YourSuperSecretJwtKeyThatIsAtLeast32CharactersLong!
+      - Jwt__Issuer=ForexRateAlerter
+      - Jwt__Audience=ForexRateAlerterUsers
+      - ExchangeRateApi__BaseUrl=http://api.exchangerate-api.com/v4
+      - ExchangeRateApi__ApiKey=${EXCHANGE_RATE_API_KEY}
+      - Email__SmtpHost=${SMTP_HOST}
+      - Email__SmtpPort=${SMTP_PORT}
+      - Email__SmtpUser=${SMTP_USER}
+      - Email__SmtpPassword=${SMTP_PASSWORD}
+      - Email__FromEmail=${FROM_EMAIL}
+    depends_on:
+      - db
+    volumes:
+      - ./logs:/app/logs
+
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrong!Passw0rd
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+
+volumes:
+  sqlserver_data:
