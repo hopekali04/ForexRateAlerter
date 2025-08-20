@@ -6,6 +6,7 @@ namespace ForexRateAlerter.Core.Interfaces
     {
         Task<(bool Success, string Token, string Error)> LoginAsync(LoginDto loginDto);
         Task<(bool Success, UserResponseDto? User, string Error)> RegisterAsync(RegisterDto registerDto);
+        Task<(bool Success, UserResponseDto? User, string Error)> CreateAdminAsync(RegisterDto registerDto);
         Task<UserResponseDto?> GetUserByIdAsync(int userId);
         string GenerateJwtToken(int userId, string email, string role);
     }
