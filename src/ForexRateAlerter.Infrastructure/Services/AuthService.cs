@@ -111,6 +111,53 @@ namespace ForexRateAlerter.Infrastructure.Services
             };
         }
 
+        public async Task<(bool Success, UserResponseDto? User, string Error)> CreateAdminAsync(RegisterDto registerDto)
+        {
+            try
+            {
+                // Check if user already exists
+                var existingUser = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Email.ToLower() == registerDto.Email.ToLower());
+
+                if (existingUser != null)
+                {
+                    return (false, null, "User with this email already exists");
+                }
+
+                // Create new admin user
+                var user = new User
+                {
+                    Email = registerDto.Email.ToLower(),
+                    FirstName = registerDto.FirstName,
+                    LastName = registerDto.LastName,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(registerDto.Password),
+                    Role = UserRole.Admin
+                };
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+
+                // Send welcome email (fire and forget)
+                _ = Task.Run(() => _emailService.SendWelcomeEmailAsync(user.Email, user.FirstName));
+
+                var userResponse = new UserResponseDto
+                {
+                    Id = user.Id,
+                    Email = user.Email,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Role = user.Role.ToString(),
+                    CreatedAt = user.CreatedAt
+                };
+
+                return (true, userResponse, string.Empty);
+            }
+            catch (Exception ex)
+            {
+                return (false, null, $"Admin creation failed: {ex.Message}");
+            }
+        }
+
         public string GenerateJwtToken(int userId, string email, string role)
         {
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
