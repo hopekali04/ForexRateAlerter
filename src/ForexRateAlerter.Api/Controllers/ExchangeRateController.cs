@@ -1,0 +1,74 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using ForexRateAlerter.Core.Interfaces;
+
+namespace ForexRateAlerter.Api.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    [Authorize]
+    public class ExchangeRateController : ControllerBase
+    {
+        private readonly IExchangeRateService _exchangeRateService;
+
+        public ExchangeRateController(IExchangeRateService exchangeRateService)
+        {
+            _exchangeRateService = exchangeRateService;
+        }
+
+        /// <summary>
+        /// Get latest exchange rates for all supported currency pairs
+        /// </summary>
+        [HttpGet("latest")]
+        public async Task<IActionResult> GetLatestRates()
+        {
+            var rates = await _exchangeRateService.GetLatestRatesAsync();
+            return Ok(new { rates, timestamp = DateTime.UtcNow });
+        }
+
+        /// <summary>
+        /// Get latest rate for a specific currency pair
+        /// </summary>
+        [HttpGet("latest/{baseCurrency}/{targetCurrency}")]
+        public async Task<IActionResult> GetLatestRate(string baseCurrency, string targetCurrency)
+        {
+            var rate = await _exchangeRateService.GetLatestRateAsync(
+                baseCurrency.ToUpper(), targetCurrency.ToUpper());
+
+            if (rate == null)
+                return NotFound(new { error = "Exchange rate not found for the specified currency pair" });
+
+            return Ok(rate);
+        }
+
+        /// <summary>
+        /// Get rate history for a specific currency pair
+        /// </summary>
+        [HttpGet("history/{baseCurrency}/{targetCurrency}")]
+        public async Task<IActionResult> GetRateHistory(string baseCurrency, string targetCurrency, 
+            [FromQuery] int days = 30)
+        {
+            if (days > 365) days = 365; // Limit to 1 year
+
+            var history = await _exchangeRateService.GetRateHistoryAsync(
+                baseCurrency.ToUpper(), targetCurrency.ToUpper(), days);
+
+            return Ok(new { history, days });
+        }
+
+        /// <summary>
+        /// Manually trigger exchange rate update (Admin only)
+        /// </summary>
+        [HttpPost("refresh")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> RefreshRates()
+        {
+            var success = await _exchangeRateService.FetchAndStoreLatestRatesAsync();
+            
+            if (success)
+                return Ok(new { message = "Exchange rates updated successfully" });
+            
+            return StatusCode(500, new { error = "Failed to update exchange rates" });
+        }
+    }
+}

@@ -84,4 +84,6 @@ StyleCopReport.xml
 # JetBrains Rider
 .idea/
 *.sln.iml
+
+.env
 # End of file
