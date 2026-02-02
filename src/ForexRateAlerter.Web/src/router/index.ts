@@ -56,23 +56,22 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
   
-  // If going to login or register and already authenticated, redirect to home
-  if ((to.name === 'login' || to.name === 'register') && authStore.token) {
-    next('/')
+  // Only redirect authenticated users away from login/register IF coming from home
+  if ((to.name === 'login' || to.name === 'register') && authStore.token && from.name === 'home') {
+    next('/dashboard')
     return
   }
   
-  // If route requires auth and user is not authenticated, redirect to login
+  // Redirect unauthenticated users away from protected routes
   if (to.meta.requiresAuth && !authStore.token) {
     next('/login')
     return
   }
   
-  // If route has role requirements, check user role
-  if (Array.isArray(to.meta.roles) && authStore.token) {
-    if (!to.meta.roles.includes(authStore.user?.role)) {
-      // Redirect based on user role
-      if (authStore.user?.role === 'Admin') {
+  // For protected routes with role requirements, validate user role
+  if (to.meta.requiresAuth && to.meta.roles && authStore.token && authStore.user) {
+    if (!to.meta.roles.includes(authStore.user.role)) {
+      if (authStore.user.role === 'Admin') {
         next('/admin')
       } else {
         next('/dashboard')
@@ -81,6 +80,7 @@ router.beforeEach((to, from, next) => {
     }
   }
   
+  // Allow navigation
   next()
 })
 
