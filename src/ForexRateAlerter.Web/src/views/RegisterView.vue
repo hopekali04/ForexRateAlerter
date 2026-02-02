@@ -1,20 +1,19 @@
 <template>
   <div class="relative min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
     <!-- Background -->
-    <div class="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50"></div>
-    <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-100/40 via-transparent to-transparent"></div>
+    <div class="absolute inset-0 bg-slate-50"></div>
     
     <!-- Register Card -->
     <div class="relative w-full max-w-md">
-      <div class="bg-white/80 backdrop-blur-xl rounded-3xl shadow-glass border border-white/20 p-8 animate-scale-in">
+      <div class="bg-white border border-solid border-gray-300 p-8">
         <!-- Header -->
         <div class="text-center mb-8">
-          <div class="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 via-purple-600 to-indigo-600 shadow-lg shadow-purple-500/25 flex items-center justify-center mb-6">
-            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div class="mx-auto w-12 h-12 bg-green-500 border border-solid border-gray-300 flex items-center justify-center mb-6">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
             </svg>
           </div>
-          <h1 class="text-2xl font-bold text-gray-900 mb-2">Create your account</h1>
+          <h1 class="text-2xl font-bold text-slate-900 mb-2">Create your account</h1>
           <p class="text-gray-600">Join thousands of traders monitoring forex rates</p>
         </div>
 
@@ -29,7 +28,7 @@
                   type="text"
                   id="firstName"
                   v-model="firstName"
-                  class="block w-full px-4 py-4 text-gray-900 placeholder-gray-500 bg-white/50 border border-gray-200/50 rounded-2xl backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ease-out"
+                  class="block w-full px-4 py-3 text-slate-900 placeholder-gray-500 bg-white border border-solid border-gray-300 focus:outline-none focus:border-green-500 transition-all duration-200"
                   placeholder="John"
                   required
                 />
@@ -40,7 +39,7 @@
                   type="text"
                   id="lastName"
                   v-model="lastName"
-                  class="block w-full px-4 py-4 text-gray-900 placeholder-gray-500 bg-white/50 border border-gray-200/50 rounded-2xl backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ease-out"
+                  class="block w-full px-4 py-3 text-slate-900 placeholder-gray-500 bg-white border border-solid border-gray-300 focus:outline-none focus:border-green-500 transition-all duration-200"
                   placeholder="Doe"
                   required
                 />
@@ -55,7 +54,7 @@
                   type="email"
                   id="email"
                   v-model="email"
-                  class="block w-full px-4 py-4 text-gray-900 placeholder-gray-500 bg-white/50 border border-gray-200/50 rounded-2xl backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ease-out"
+                  class="block w-full px-4 py-3 text-slate-900 placeholder-gray-500 bg-white border border-solid border-gray-300 focus:outline-none focus:border-green-500 transition-all duration-200"
                   placeholder="john@example.com"
                   required
                 />
@@ -75,7 +74,7 @@
                   :type="showPassword ? 'text' : 'password'"
                   id="password"
                   v-model="password"
-                  class="block w-full px-4 py-4 text-gray-900 placeholder-gray-500 bg-white/50 border border-gray-200/50 rounded-2xl backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ease-out"
+                  class="block w-full px-4 py-3 text-slate-900 placeholder-gray-500 bg-white border border-solid border-gray-300 focus:outline-none focus:border-green-500 transition-all duration-200"
                   placeholder="Create a strong password"
                   required
                 />
@@ -100,7 +99,7 @@
           <button
             type="submit"
             :disabled="isLoading"
-            class="group relative w-full flex justify-center py-4 px-4 text-base font-semibold text-white bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl shadow-apple-lg hover:shadow-apple-xl hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ease-out"
+            class="group relative w-full flex justify-center py-4 px-4 text-base font-semibold text-white bg-green-500 border border-solid border-gray-300 hover:bg-green-600 focus:outline-none focus:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
           >
             <span v-if="!isLoading" class="relative z-10">Create Account</span>
             <span v-else class="relative z-10 flex items-center">
@@ -110,23 +109,22 @@
               </svg>
               Creating account...
             </span>
-            <div class="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-700 to-indigo-700 opacity-0 transition-opacity duration-200 group-hover:opacity-100"></div>
           </button>
 
           <!-- Terms -->
           <p class="text-xs text-center text-gray-600">
             By creating an account, you agree to our
-            <a href="#" class="text-purple-600 hover:text-purple-500 transition-colors duration-200">Terms of Service</a>
+            <a href="#" class="text-green-600 hover:text-green-500 transition-colors duration-200">Terms of Service</a>
             and
-            <a href="#" class="text-purple-600 hover:text-purple-500 transition-colors duration-200">Privacy Policy</a>
+            <a href="#" class="text-green-600 hover:text-green-500 transition-colors duration-200">Privacy Policy</a>
           </p>
         </form>
 
         <!-- Sign In Link -->
-        <div class="mt-8 pt-6 border-t border-gray-200/50">
+        <div class="mt-8 pt-6 border-t border-solid border-gray-300">
           <p class="text-center text-sm text-gray-600">
             Already have an account?
-            <RouterLink to="/login" class="font-medium text-purple-600 hover:text-purple-500 transition-colors duration-200">
+            <RouterLink to="/login" class="font-medium text-green-600 hover:text-green-500 transition-colors duration-200">
               Sign in instead
             </RouterLink>
           </p>
