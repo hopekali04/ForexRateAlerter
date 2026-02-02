@@ -57,6 +57,35 @@ namespace ForexRateAlerter.Api.Controllers
         }
 
         /// <summary>
+        /// Get OHLC (candlestick) data for charting
+        /// </summary>
+        [HttpGet("ohlc/{baseCurrency}/{targetCurrency}")]
+        public async Task<IActionResult> GetOHLCData(string baseCurrency, string targetCurrency,
+            [FromQuery] string timeframe = "1h", [FromQuery] int limit = 100)
+        {
+            // Validate timeframe
+            var validTimeframes = new[] { "1m", "5m", "15m", "1h", "1D" };
+            if (!validTimeframes.Contains(timeframe))
+                return BadRequest(new { error = "Invalid timeframe. Allowed: 1m, 5m, 15m, 1h, 1D" });
+
+            // Validate limit
+            if (limit < 1 || limit > 1000)
+                return BadRequest(new { error = "Limit must be between 1 and 1000" });
+
+            var candles = await _exchangeRateService.GetOHLCDataAsync(
+                baseCurrency.ToUpper(), targetCurrency.ToUpper(), timeframe, limit);
+
+            return Ok(new { 
+                candles, 
+                timeframe, 
+                count = candles.Count(),
+                baseCurrency = baseCurrency.ToUpper(),
+                targetCurrency = targetCurrency.ToUpper(),
+                timestamp = DateTime.UtcNow 
+            });
+        }
+
+        /// <summary>
         /// Manually trigger exchange rate update (Admin only)
         /// </summary>
         [HttpPost("refresh")]
