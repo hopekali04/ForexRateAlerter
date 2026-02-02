@@ -108,7 +108,11 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("DefaultPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "https://localhost:3001") // React app URLs
+        policy.WithOrigins(
+            "http://localhost:3000", 
+            "https://localhost:3001",
+            "http://localhost:5173"  // Vue app URL
+        )
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
@@ -125,6 +129,16 @@ if (app.Environment.IsDevelopment())
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Forex Rate Alerter API v1");
         c.RoutePrefix = string.Empty; // Serve Swagger UI at root
+    });
+}
+else
+{
+    // For development/testing, enable Swagger in non-dev environments
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Forex Rate Alerter API v1");
+        c.RoutePrefix = string.Empty;
     });
 }
 
