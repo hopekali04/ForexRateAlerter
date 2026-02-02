@@ -4,6 +4,8 @@ import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import UserDashboardView from '../views/UserDashboardView.vue'
 import AdminDashboardView from '../views/AdminDashboardView.vue'
+import AlertsView from '../views/AlertsView.vue'
+import RatesView from '../views/RatesView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
 import { useAuthStore } from '@/stores/auth'
 
@@ -29,6 +31,18 @@ const router = createRouter({
       path: '/dashboard',
       name: 'dashboard',
       component: UserDashboardView,
+      meta: { requiresAuth: true, roles: ['User'] }
+    },
+    {
+      path: '/alerts',
+      name: 'alerts',
+      component: AlertsView,
+      meta: { requiresAuth: true, roles: ['User'] }
+    },
+    {
+      path: '/rates',
+      name: 'rates',
+      component: RatesView,
       meta: { requiresAuth: true, roles: ['User'] }
     },
     {
@@ -70,7 +84,8 @@ router.beforeEach((to, from, next) => {
   
   // For protected routes with role requirements, validate user role
   if (to.meta.requiresAuth && to.meta.roles && authStore.token && authStore.user) {
-    if (!to.meta.roles.includes(authStore.user.role)) {
+    const roles = to.meta.roles as string[];
+    if (!roles.includes(authStore.user.role)) {
       if (authStore.user.role === 'Admin') {
         next('/admin')
       } else {
