@@ -1,197 +1,220 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50">
-    <div class="px-6 py-8 mx-auto max-w-7xl lg:px-8">
-      <!-- Header Section -->
-      <div class="mb-12">
-        <div class="text-center md:text-left">
-          <h1 class="text-4xl font-bold tracking-tight text-gray-900 mb-3">
-            <span class="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Your Alerts
-            </span>
-          </h1>
-          <p class="text-lg text-gray-600 max-w-2xl">
-            Monitor forex rates and get notified when your target conditions are met
-          </p>
-        </div>
-      </div>
+  <div class="min-h-screen bg-blueprint-bg">
+    <!-- Market Ticker -->
+    <MarketTicker />
 
-      <!-- Create Alert Card -->
-      <div class="mb-12 animate-slide-up">
-        <div class="bg-white/80 backdrop-blur-xl rounded-3xl shadow-glass border border-white/20 p-8">
-          <div class="flex items-center mb-6">
-            <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/25 mr-4">
-              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-              </svg>
+    <!-- Main Layout: Sidebar + Content -->
+    <div class="flex">
+      <!-- Sidebar -->
+      <aside class="w-64 bg-blueprint-surface border-r border-blueprint-border h-[calc(100vh-32px)] sticky top-0 flex flex-col">
+        <!-- User Section -->
+        <div class="border-b border-blueprint-border p-6">
+          <div class="flex items-center">
+            <div class="w-10 h-10 border border-blueprint-border bg-blueprint-bg flex items-center justify-center">
+              <span class="font-mono text-sm font-bold text-blueprint-text">{{ userInitials }}</span>
             </div>
-            <div>
-              <h2 class="text-2xl font-bold text-gray-900">Create New Alert</h2>
-              <p class="text-gray-600">Set up a new forex rate alert to monitor your preferred currency pairs</p>
+            <div class="ml-3">
+              <p class="font-sans text-xs font-bold text-blueprint-text">{{ authStore.user?.email?.split('@')[0] || 'USER' }}</p>
+              <p class="font-sans text-xs text-blueprint-text-secondary">Active Session</p>
             </div>
           </div>
-          
-          <form @submit.prevent="handleCreateAlert" class="space-y-6">
-            <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-4">
-              <!-- Base Currency -->
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">Base Currency</label>
-                <input 
-                  v-model="newAlert.baseCurrency" 
-                  placeholder="USD"
-                  class="block w-full px-4 py-4 text-gray-900 placeholder-gray-500 bg-white/70 border border-gray-200/50 rounded-2xl backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ease-out"
-                  required 
-                />
-              </div>
-
-              <!-- Target Currency -->
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">Target Currency</label>
-                <input 
-                  v-model="newAlert.targetCurrency" 
-                  placeholder="EUR"
-                  class="block w-full px-4 py-4 text-gray-900 placeholder-gray-500 bg-white/70 border border-gray-200/50 rounded-2xl backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ease-out"
-                  required 
-                />
-              </div>
-
-              <!-- Condition -->
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">Condition</label>
-                <select 
-                  v-model="newAlert.condition" 
-                  class="block w-full px-4 py-4 text-gray-900 bg-white/70 border border-gray-200/50 rounded-2xl backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ease-out"
-                  required
-                >
-                  <option value="1">Greater Than</option>
-                  <option value="2">Less Than</option>
-                  <option value="3">Equal To</option>
-                </select>
-              </div>
-
-              <!-- Target Rate -->
-              <div class="space-y-2">
-                <label class="block text-sm font-semibold text-gray-700">Target Rate</label>
-                <input 
-                  v-model="newAlert.targetRate" 
-                  type="number" 
-                  step="0.0001" 
-                  placeholder="1.0500"
-                  class="block w-full px-4 py-4 text-gray-900 placeholder-gray-500 bg-white/70 border border-gray-200/50 rounded-2xl backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ease-out"
-                  required 
-                />
-              </div>
-            </div>
-
-            <!-- Submit Button -->
-            <div class="flex justify-end">
-              <button 
-                type="submit"
-                :disabled="isCreating"
-                class="group relative inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-apple-lg hover:shadow-apple-xl hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ease-out"
-              >
-                <span v-if="!isCreating" class="relative z-10 flex items-center">
-                  <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                  </svg>
-                  Create Alert
-                </span>
-                <span v-else class="relative z-10 flex items-center">
-                  <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Creating...
-                </span>
-                <div class="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-700 to-indigo-700 opacity-0 transition-opacity duration-200 group-hover:opacity-100"></div>
-              </button>
-            </div>
-          </form>
         </div>
-      </div>
 
-      <!-- Active Alerts Section -->
-      <div class="animate-fade-in">
-        <div class="flex items-center justify-between mb-8">
-          <div>
-            <h2 class="text-2xl font-bold text-gray-900">Active Alerts</h2>
-            <p class="text-gray-600">{{ alerts.length }} {{ alerts.length === 1 ? 'alert' : 'alerts' }} currently monitoring</p>
+        <!-- Navigation -->
+        <nav class="flex-1 p-4">
+          <div class="space-y-1">
+            <button 
+              class="w-full text-left px-4 py-3 border border-blueprint-border bg-blueprint-primary text-white font-sans text-xs font-bold uppercase"
+            >
+              Dashboard
+            </button>
+            <RouterLink
+              to="/alerts"
+              class="block w-full text-left px-4 py-3 border border-blueprint-border hover:bg-blueprint-text hover:text-white font-sans text-xs font-bold uppercase text-blueprint-text transition-colors"
+            >
+              My Alerts
+            </RouterLink>
+            <RouterLink
+              to="/rates"
+              class="block w-full text-left px-4 py-3 border border-blueprint-border hover:bg-blueprint-text hover:text-white font-sans text-xs font-bold uppercase text-blueprint-text transition-colors"
+            >
+              Exchange Rates
+            </RouterLink>
           </div>
-        </div>
+        </nav>
 
-        <!-- Alerts Grid -->
-        <div v-if="alerts.length > 0" class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          <div 
-            v-for="alert in alerts" 
-            :key="alert.id" 
-            class="group bg-white/80 backdrop-blur-xl rounded-3xl shadow-glass border border-white/20 p-6 hover:shadow-glass-lg hover:scale-105 transition-all duration-300 ease-out"
+        <!-- Action Buttons -->
+        <div class="p-4 border-t border-blueprint-border space-y-2">
+          <button 
+            @click="openAlertModal()"
+            class="w-full px-4 py-3 bg-blueprint-primary border border-blueprint-primary text-white font-sans text-xs font-bold uppercase hover:bg-blueprint-text hover:border-blueprint-text transition-colors"
           >
-            <!-- Alert Header -->
-            <div class="flex items-start justify-between mb-4">
-              <div class="flex items-center">
-                <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/25 mr-3">
-                  <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+            + NEW ALERT
+          </button>
+          <button 
+            @click="handleLogout"
+            class="w-full px-4 py-3 border border-blueprint-border bg-blueprint-surface text-blueprint-text font-sans text-xs font-bold uppercase hover:bg-blueprint-error hover:text-white hover:border-blueprint-error transition-colors"
+          >
+            LOGOUT
+          </button>
+        </div>
+      </aside>
+      <!-- Main Content -->
+      <main class="flex-1 p-8">
+        <!-- Header -->
+        <div class="mb-8">
+          <h1 class="font-sans text-2xl font-bold text-blueprint-text uppercase tracking-wide mb-2">Forex Alert Dashboard</h1>
+          <div class="flex items-center gap-4">
+            <div class="flex items-center">
+              <div class="w-2 h-2 bg-blueprint-primary mr-2"></div>
+              <span class="font-sans text-xs text-blueprint-text-secondary">SYSTEM ONLINE</span>
+            </div>
+            <div class="border-l border-blueprint-border h-4"></div>
+            <span class="font-mono text-xs text-blueprint-text-secondary">{{ currentTime }}</span>
+          </div>
+        </div>
+
+        <!-- Dashboard Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Currency Strength (Takes 1 column) -->
+          <div class="lg:col-span-1">
+            <CurrencyStrength @select-pair="handleSelectPair" />
+          </div>
+
+          <!-- Active Alerts List (Takes 2 columns) -->
+          <div class="lg:col-span-2">
+            <div class="bg-blueprint-surface border border-blueprint-border">
+              <!-- Header -->
+              <div class="border-b border-blueprint-border px-6 py-4 flex justify-between items-center">
+                <div>
+                  <h3 class="font-sans text-sm font-bold text-blueprint-text uppercase tracking-wide">Active Alerts</h3>
+                  <p class="font-sans text-xs text-blueprint-text-secondary mt-1">{{ alerts.length }} monitoring</p>
+                </div>
+                <button 
+                  @click="loadAlerts"
+                  class="px-3 py-2 border border-blueprint-border hover:bg-blueprint-text hover:text-white transition-colors"
+                  title="Refresh"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Alerts Table -->
+              <div v-if="alerts.length > 0" class="overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-blueprint-bg border-b border-blueprint-border">
+                    <tr>
+                      <th class="px-6 py-3 text-left font-sans text-xs font-bold text-blueprint-text uppercase">Pair</th>
+                      <th class="px-6 py-3 text-left font-sans text-xs font-bold text-blueprint-text uppercase">Condition</th>
+                      <th class="px-6 py-3 text-left font-sans text-xs font-bold text-blueprint-text uppercase">Target Rate</th>
+                      <th class="px-6 py-3 text-left font-sans text-xs font-bold text-blueprint-text uppercase">Status</th>
+                      <th class="px-6 py-3 text-right font-sans text-xs font-bold text-blueprint-text uppercase">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr 
+                      v-for="alert in alerts" 
+                      :key="alert.id"
+                      class="border-b border-blueprint-border hover:bg-blueprint-bg transition-colors"
+                    >
+                      <td class="px-6 py-4 font-mono text-sm font-bold text-blueprint-text">
+                        {{ alert.baseCurrency }}/{{ alert.targetCurrency }}
+                      </td>
+                      <td class="px-6 py-4 font-sans text-sm text-blueprint-text">
+                        {{ getConditionSymbol(alert.condition) }}
+                      </td>
+                      <td class="px-6 py-4 font-mono text-sm font-bold text-blueprint-text">
+                        {{ formatRate(alert.targetRate) }}
+                      </td>
+                      <td class="px-6 py-4">
+                        <div class="flex items-center">
+                          <div class="w-2 h-2 bg-blueprint-primary mr-2"></div>
+                          <span class="font-sans text-xs text-blueprint-text-secondary uppercase">Active</span>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 text-right">
+                        <button 
+                          @click="handleDeleteAlert(alert.id)"
+                          class="px-3 py-2 border border-blueprint-border text-blueprint-text hover:bg-blueprint-error hover:text-white hover:border-blueprint-error transition-colors"
+                          title="Delete"
+                        >
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                          </svg>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Empty State -->
+              <div v-else class="p-12 text-center">
+                <div class="w-16 h-16 border border-blueprint-border bg-blueprint-bg mx-auto mb-4 flex items-center justify-center">
+                  <svg class="w-8 h-8 text-blueprint-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="1.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                   </svg>
                 </div>
-                <div>
-                  <h3 class="text-lg font-bold text-gray-900">{{ alert.baseCurrency }}/{{ alert.targetCurrency }}</h3>
-                  <p class="text-sm text-gray-500">Currency Pair</p>
-                </div>
+                <p class="font-sans text-sm font-bold text-blueprint-text mb-2">NO ALERTS CONFIGURED</p>
+                <p class="font-sans text-xs text-blueprint-text-secondary">Click "NEW ALERT" to start monitoring</p>
               </div>
-              
-              <!-- Delete Button -->
-              <button 
-                @click="handleDeleteAlert(alert.id)"
-                class="group/btn p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all duration-200 ease-out"
-                title="Delete Alert"
-              >
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                </svg>
-              </button>
-            </div>
-
-            <!-- Alert Details -->
-            <div class="space-y-3">
-              <div class="flex items-center justify-between p-3 bg-gray-50/50 rounded-xl">
-                <span class="text-sm font-medium text-gray-600">Condition</span>
-                <span class="text-sm font-semibold text-gray-900">{{ getConditionText(alert.condition) }}</span>
-              </div>
-              
-              <div class="flex items-center justify-between p-3 bg-gray-50/50 rounded-xl">
-                <span class="text-sm font-medium text-gray-600">Target Rate</span>
-                <span class="text-lg font-bold text-blue-600">{{ formatRate(alert.targetRate) }}</span>
-              </div>
-            </div>
-
-            <!-- Status Indicator -->
-            <div class="mt-4 flex items-center">
-              <div class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
-              <span class="text-xs font-medium text-gray-600">Active & Monitoring</span>
             </div>
           </div>
         </div>
 
-        <!-- Empty State -->
-        <div v-else class="text-center py-16">
-          <div class="mx-auto w-24 h-24 rounded-3xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center mb-6">
-            <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-5 5v-5zM9 12l2 2 4-4m-6 2a9 9 0 110-18 9 9 0 010 18z"/>
-            </svg>
+        <!-- Statistics Grid -->
+        <div class="grid grid-cols-3 gap-6 mt-6">
+          <div class="bg-blueprint-surface border border-blueprint-border p-6">
+            <p class="font-sans text-xs font-bold text-blueprint-text-secondary uppercase mb-2">Total Alerts</p>
+            <p class="font-mono text-3xl font-bold text-blueprint-text">{{ alerts.length }}</p>
           </div>
-          <h3 class="text-xl font-semibold text-gray-900 mb-2">No alerts yet</h3>
-          <p class="text-gray-600 max-w-md mx-auto">
-            Create your first alert above to start monitoring forex rates and get notified when your conditions are met.
-          </p>
+          <div class="bg-blueprint-surface border border-blueprint-border p-6">
+            <p class="font-sans text-xs font-bold text-blueprint-text-secondary uppercase mb-2">Triggered Today</p>
+            <p class="font-mono text-3xl font-bold text-blueprint-primary">0</p>
+          </div>
+          <div class="bg-blueprint-surface border border-blueprint-border p-6">
+            <p class="font-sans text-xs font-bold text-blueprint-text-secondary uppercase mb-2">Monitoring Since</p>
+            <p class="font-mono text-sm font-bold text-blueprint-text">{{ joinDate }}</p>
+          </div>
         </div>
-      </div>
+
+        <!-- Interactive Forex Chart -->
+        <div class="mt-6">
+          <ForexChart />
+        </div>
+      </main>
     </div>
+
+    <!-- Alert Form Modal -->
+    <AlertForm 
+      :is-open="isModalOpen"
+      :prefill-pair="selectedPair"
+      @close="closeAlertModal"
+      @submit="handleCreateAlert"
+    />
+
+    <!-- Toast Notification -->
+    <Toast 
+      :show="toast.show"
+      :message="toast.message"
+      :type="toast.type"
+      @close="toast.show = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { useRouter, RouterLink } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
 import { createAlert, getUserAlerts, deleteAlert } from '@/services/alertService';
+import MarketTicker from '@/components/MarketTicker.vue';
+import CurrencyStrength from '@/components/CurrencyStrength.vue';
+import AlertForm from '@/components/AlertForm.vue';
+import Toast from '@/components/Toast.vue';
+import ForexChart from '@/components/ForexChart.vue';
 
 interface Alert {
   id: string | number;
@@ -201,43 +224,106 @@ interface Alert {
   targetRate: number;
 }
 
-const newAlert = ref({
-  baseCurrency: '',
-  targetCurrency: '',
-  condition: 1,
-  targetRate: null,
-});
+interface ToastState {
+  show: boolean;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
+
+const router = useRouter();
+const authStore = useAuthStore();
 
 const alerts = ref<Alert[]>([]);
-const isCreating = ref(false);
+const isModalOpen = ref(false);
+const selectedPair = ref('');
+const currentTime = ref('');
+const toast = ref<ToastState>({
+  show: false,
+  message: '',
+  type: 'info',
+});
 
-const handleCreateAlert = async () => {
-  if (isCreating.value) return;
-  
+const userInitials = computed(() => {
+  const email = authStore.user?.email || 'U';
+  return email.substring(0, 2).toUpperCase();
+});
+
+const joinDate = computed(() => {
+  return new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+});
+
+const updateTime = () => {
+  const now = new Date();
+  currentTime.value = now.toLocaleTimeString('en-US', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false 
+  }) + ' UTC';
+};
+
+let timeInterval: number | null = null;
+
+onMounted(() => {
+  loadAlerts();
+  updateTime();
+  timeInterval = window.setInterval(updateTime, 1000);
+});
+
+onUnmounted(() => {
+  if (timeInterval) {
+    clearInterval(timeInterval);
+  }
+});
+
+const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+  toast.value = { show: true, message, type };
+};
+
+const handleSelectPair = (pair: string) => {
+  selectedPair.value = pair;
+  isModalOpen.value = true;
+};
+
+const openAlertModal = () => {
+  selectedPair.value = '';
+  isModalOpen.value = true;
+};
+
+const closeAlertModal = () => {
+  isModalOpen.value = false;
+  selectedPair.value = '';
+};
+
+const handleCreateAlert = async (formData: any) => {
   try {
-    isCreating.value = true;
-    await createAlert(newAlert.value);
-    // Reset form
-    newAlert.value = {
-      baseCurrency: '',
-      targetCurrency: '',
-      condition: 1,
-      targetRate: null,
-    };
+    await createAlert({
+      baseCurrency: formData.baseCurrency,
+      targetCurrency: formData.targetCurrency,
+      condition: Number(formData.condition),
+      targetRate: parseFloat(formData.targetRate),
+    });
+    
+    showToast(
+      `Alert set for ${formData.baseCurrency}/${formData.targetCurrency} ${getConditionSymbol(formData.condition)} ${formData.targetRate}`,
+      'success'
+    );
+    
     loadAlerts();
   } catch (error) {
     console.error('Failed to create alert:', error);
-  } finally {
-    isCreating.value = false;
+    showToast('Failed to create alert. Please try again.', 'error');
   }
 };
 
 const handleDeleteAlert = async (id: string | number) => {
   try {
     await deleteAlert(Number(id));
+    showToast('Alert deleted successfully', 'success');
     loadAlerts();
   } catch (error) {
     console.error('Failed to delete alert:', error);
+    showToast('Failed to delete alert. Please try again.', 'error');
   }
 };
 
@@ -247,23 +333,25 @@ const loadAlerts = async () => {
     alerts.value = data.alerts;
   } catch (error) {
     console.error('Failed to load alerts:', error);
+    showToast('Failed to load alerts', 'error');
   }
 };
 
-const getConditionText = (condition: string): string => {
+const handleLogout = () => {
+  authStore.logout();
+  router.push('/login');
+};
+
+const getConditionSymbol = (condition: string | number): string => {
   const conditionMap: Record<string, string> = {
-    '1': 'Greater Than',
-    '2': 'Less Than',
-    '3': 'Equal To',
+    '1': '>',
+    '2': '<',
+    '3': '=',
   };
-  return conditionMap[condition] || 'Unknown';
+  return conditionMap[String(condition)] || '?';
 };
 
 const formatRate = (rate: number): string => {
   return rate?.toFixed(4) || '0.0000';
 };
-
-onMounted(() => {
-  loadAlerts();
-});
 </script>
