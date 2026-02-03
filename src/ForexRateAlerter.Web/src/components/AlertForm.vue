@@ -185,7 +185,7 @@ const closeModal = () => {
   }, 300);
 };
 
-const handleSubmit = async () => {
+const handleSubmit = () => {
   if (isSubmitting.value) return;
   
   // Validate target rate format
@@ -196,16 +196,11 @@ const handleSubmit = async () => {
 
   isSubmitting.value = true;
   
-  try {
-    emit('submit', {
-      ...formData.value,
-      targetRate: parseFloat(rateValue).toFixed(4), // Ensure 4 decimal precision
-    });
-    closeModal();
-  } catch (error) {
-    console.error('Form submission error:', error);
-    isSubmitting.value = false;
-  }
+  emit('submit', {
+    ...formData.value,
+    targetRate: parseFloat(rateValue).toFixed(4), // Ensure 4 decimal precision
+  });
+  closeModal();
 };
 </script>
 
