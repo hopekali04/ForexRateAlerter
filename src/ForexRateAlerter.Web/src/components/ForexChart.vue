@@ -203,6 +203,13 @@ let chart: IChartApi | null = null;
 let series: ISeriesApi<'Candlestick'> | ISeriesApi<'Line'> | ISeriesApi<'Area'> | null = null;
 let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
+// Handle window resize
+const handleResize = () => {
+  if (chart && chartContainer.value) {
+    chart.applyOptions({ width: chartContainer.value.clientWidth });
+  }
+};
+
 // Initialize chart
 const initChart = () => {
   if (!chartContainer.value) return;
@@ -243,12 +250,7 @@ const initChart = () => {
 
   createSeries();
 
-  // Handle window resize
-  const handleResize = () => {
-    if (chart && chartContainer.value) {
-      chart.applyOptions({ width: chartContainer.value.clientWidth });
-    }
-  };
+  // Attach resize listener
   window.addEventListener('resize', handleResize);
 };
 
@@ -393,5 +395,6 @@ onUnmounted(() => {
   if (chart) {
     chart.remove();
   }
+  window.removeEventListener('resize', handleResize);
 });
 </script>
