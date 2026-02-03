@@ -110,11 +110,43 @@ namespace ForexRateAlerter.Infrastructure.Services
                 await client.SendMailAsync(message);
                 return true;
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Failed to send welcome email to {toEmail}");
-                return false;
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, $"Failed to send welcome email to {toEmail}");
+                            return false;
+                        }
+                    }
+            
+                    public async Task<bool> SendTestEmailAsync(string toEmail)
+                    {
+                        try
+                        {
+                            var smtpHost = _configuration["Email:SmtpHost"];
+                            var smtpPort = int.Parse(_configuration["Email:SmtpPort"] ?? "587");
+                            var smtpUser = _configuration["Email:SmtpUser"];
+                            var smtpPass = _configuration["Email:SmtpPassword"];
+                            var fromEmail = _configuration["Email:FromEmail"];
+            
+                            using var client = new SmtpClient(smtpHost, smtpPort)
+                            {
+                                Credentials = new NetworkCredential(smtpUser, smtpPass),
+                                EnableSsl = true
+                            };
+            
+                            var subject = "SMTP Connection Test";
+                            var body = "This is a test email to verify the SMTP connection.";
+            
+                            var message = new MailMessage(fromEmail!, toEmail, subject, body);
+            
+                            await client.SendMailAsync(message);
+                            return true;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, $"Failed to send test email to {toEmail}");
+                            return false;
+                        }
+                    }
+                }
             }
-        }
-    }
-}
+            
