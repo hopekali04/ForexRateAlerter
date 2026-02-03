@@ -75,7 +75,7 @@ router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
   
   // Only redirect authenticated users away from login/register IF coming from home
-  if ((to.name === 'login' || to.name === 'register') && authStore.token && from.name === 'home') {
+  if ((to.name === 'login' || to.name === 'register') && authStore.token) {
     next('/dashboard')
     return
   }
