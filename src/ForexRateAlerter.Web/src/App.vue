@@ -141,6 +141,7 @@ const adminNavigation = [
   { name: 'Dashboard', href: '/admin' },
   { name: 'Users', href: '/admin/users' },
   { name: 'Alerts', href: '/admin/alerts' },
+  { name: 'Rates', href: '/admin/rates' },
 ];
 
 const navigation = computed(() => {
