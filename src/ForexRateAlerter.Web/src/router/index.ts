@@ -29,19 +29,25 @@ const router = createRouter({
       path: '/alerts',
       name: 'alerts',
       component: () => import('../views/AlertsView.vue'),
-      meta: { requiresAuth: true, roles: ['User'] }
+      meta: { requiresAuth: true }
     },
     {
       path: '/rates',
       name: 'rates',
       component: () => import('../views/RatesView.vue'),
-      meta: { requiresAuth: true, roles: ['User'] }
+      meta: { requiresAuth: true}
     },
     {
       path: '/admin',
       name: 'admin',
       component: () => import('../views/AdminDashboardView.vue'),
       meta: { requiresAuth: true, roles: ['Admin'] }
+    },
+    {
+      path: '/admin/rates',
+      name: 'admin.rates',
+      component: () => import('../views/RatesView.vue'),
+      meta: { requiresAuth: true}
     },
     {
       path: '/admin/alerts',
