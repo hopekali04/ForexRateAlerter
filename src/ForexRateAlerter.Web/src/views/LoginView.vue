@@ -104,6 +104,14 @@
         </div>
       </div>
     </div>
+
+    <!-- Toast Notification -->
+    <Toast 
+      :show="toast.show"
+      :message="toast.message"
+      :type="toast.type"
+      @close="toast.show = false"
+    />
   </div>
 </template>
 
@@ -112,6 +120,13 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { login } from '@/services/authService';
+import Toast from '@/components/Toast.vue';
+
+interface ToastState {
+  show: boolean;
+  message: string;
+  type: 'success' | 'error' | 'info';
+}
 
 const email = ref('');
 const password = ref('');
@@ -120,6 +135,16 @@ const isLoading = ref(false);
 const router = useRouter();
 const authStore = useAuthStore();
 
+const toast = ref<ToastState>({
+  show: false,
+  message: '',
+  type: 'info'
+});
+
+const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+  toast.value = { show: true, message, type };
+};
+
 const handleLogin = async () => {
   if (isLoading.value) return;
   
@@ -127,11 +152,22 @@ const handleLogin = async () => {
     isLoading.value = true;
     const data = await login({ email: email.value, password: password.value });
     authStore.setToken(data.token);
-    // You would typically decode the token to get user info
-    // For now, we'll just store the token and redirect
-    router.push('/');
-  } catch (error) {
+    
+    // Store user data from response
+    if (data.user) {
+      authStore.setUser({
+        id: data.user.id,
+        email: data.user.email,
+        role: data.user.role || 'User'
+      });
+    }
+    
+    showToast('Login successful! Welcome back.', 'success');
+    router.push('/dashboard');
+  } catch (error: any) {
     console.error('Login failed:', error);
+    const errorMessage = error.response?.data?.error || 'Login failed. Please check your credentials and try again.';
+    showToast(errorMessage, 'error');
   } finally {
     isLoading.value = false;
   }
