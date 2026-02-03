@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ForexRateAlerter.Core.Interfaces;
+using ForexRateAlerter.Core.DTOs;
 
 namespace ForexRateAlerter.Api.Controllers
 {
@@ -10,6 +11,7 @@ namespace ForexRateAlerter.Api.Controllers
     public class ExchangeRateController : ControllerBase
     {
         private readonly IExchangeRateService _exchangeRateService;
+        private static readonly HashSet<string> ValidTimeframes = new() { "1m", "5m", "15m", "1h", "1D" };
 
         public ExchangeRateController(IExchangeRateService exchangeRateService)
         {
@@ -54,6 +56,37 @@ namespace ForexRateAlerter.Api.Controllers
                 baseCurrency.ToUpper(), targetCurrency.ToUpper(), days);
 
             return Ok(new { history, days });
+        }
+
+        /// <summary>
+        /// Get OHLC (candlestick) data for charting
+        /// </summary>
+        [HttpGet("ohlc/{baseCurrency}/{targetCurrency}")]
+        public async Task<IActionResult> GetOHLCData(string baseCurrency, string targetCurrency,
+            [FromQuery] string timeframe = "1h", [FromQuery] int limit = 100)
+        {
+            // Validate timeframe
+            if (!ValidTimeframes.Contains(timeframe))
+                return BadRequest(new { error = "Invalid timeframe. Allowed: 1m, 5m, 15m, 1h, 1D" });
+
+            // Validate limit
+            if (limit < 1 || limit > 1000)
+                return BadRequest(new { error = "Limit must be between 1 and 1000" });
+
+            var candles = await _exchangeRateService.GetOHLCDataAsync(
+                baseCurrency.ToUpper(), targetCurrency.ToUpper(), timeframe, limit);
+
+            var response = new OhlcDataResponse
+            {
+                Candles = candles,
+                Timeframe = timeframe,
+                Count = candles.Count(),
+                BaseCurrency = baseCurrency.ToUpper(),
+                TargetCurrency = targetCurrency.ToUpper(),
+                Timestamp = DateTime.UtcNow
+            };
+
+            return Ok(response);
         }
 
         /// <summary>

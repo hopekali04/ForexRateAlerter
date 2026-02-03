@@ -2,7 +2,21 @@
 import axios from 'axios';
 import { useAuthStore } from '@/stores/auth';
 
-const API_URL = 'http://localhost:5000/api/alert';
+const base_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = `${base_URL}/alert`;
+
+interface CreateAlertData {
+  baseCurrency: string;
+  targetCurrency: string;
+  condition: 'GreaterThan' | 'LessThan' | 'EqualTo';
+  targetRate: number;
+}
+
+interface UpdateAlertData {
+  condition?: 'GreaterThan' | 'LessThan' | 'EqualTo';
+  targetRate?: number;
+  isActive?: boolean;
+}
 
 const getAuthHeaders = () => {
   const authStore = useAuthStore();
@@ -13,7 +27,7 @@ const getAuthHeaders = () => {
   };
 };
 
-export const createAlert = async (alertData: any) => {
+export const createAlert = async (alertData: CreateAlertData) => {
   const response = await axios.post(API_URL, alertData, getAuthHeaders());
   return response.data;
 };
@@ -28,7 +42,7 @@ export const getAlertById = async (id: number) => {
   return response.data;
 };
 
-export const updateAlert = async (id: number, alertData: any) => {
+export const updateAlert = async (id: number, alertData: UpdateAlertData) => {
   const response = await axios.put(`${API_URL}/${id}`, alertData, getAuthHeaders());
   return response.data;
 };

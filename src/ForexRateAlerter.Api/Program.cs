@@ -128,17 +128,18 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Forex Rate Alerter API v1");
-        c.RoutePrefix = string.Empty; // Serve Swagger UI at root
     });
 }
 else
 {
-    // For development/testing, enable Swagger in non-dev environments
+    // For production, serve the Vue app
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Forex Rate Alerter API v1");
-        c.RoutePrefix = string.Empty;
     });
 }
 
@@ -157,6 +158,7 @@ using (var scope = app.Services.CreateScope())
         context.Database.Migrate();
     }
 }
+app.MapFallbackToFile("index.html");
 
 app.Run();
 

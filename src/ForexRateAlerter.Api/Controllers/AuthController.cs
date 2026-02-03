@@ -47,7 +47,12 @@ namespace ForexRateAlerter.Api.Controllers
             if (!result.Success)
                 return Unauthorized(new { error = result.Error });
 
-            return Ok(new { token = result.Token, message = "Login successful" });
+            return Ok(new 
+            { 
+                token = result.Token, 
+                user = result.User,
+                message = "Login successful" 
+            });
         }
 
         /// <summary>
