@@ -25,7 +25,7 @@ namespace ForexRateAlerter.Infrastructure.Services
             _emailService = emailService;
         }
 
-        public async Task<(bool Success, string Token, string Error)> LoginAsync(LoginDto loginDto)
+        public async Task<(bool Success, string Token, UserResponseDto? User, string Error)> LoginAsync(LoginDto loginDto)
         {
             try
             {
@@ -34,15 +34,26 @@ namespace ForexRateAlerter.Infrastructure.Services
 
                 if (user == null || !BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
                 {
-                    return (false, string.Empty, "Invalid email or password");
+                    return (false, string.Empty, null, "Invalid email or password");
                 }
 
                 var token = GenerateJwtToken(user.Id, user.Email, user.Role.ToString());
-                return (true, token, string.Empty);
+                
+                var userResponse = new UserResponseDto
+                {
+                    Id = user.Id,
+                    Email = user.Email,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Role = user.Role.ToString(),
+                    CreatedAt = user.CreatedAt
+                };
+
+                return (true, token, userResponse, string.Empty);
             }
             catch (Exception ex)
             {
-                return (false, string.Empty, $"Login failed: {ex.Message}");
+                return (false, string.Empty, null, $"Login failed: {ex.Message}");
             }
         }
 
