@@ -67,7 +67,7 @@
                       {{ alert.baseCurrency }}/{{ alert.targetCurrency }}
                     </td>
                     <td class="px-6 py-4 font-sans text-sm text-blueprint-text">
-                      {{ getConditionSymbol(alert.condition) }}
+                      {{ formatCondition(alert.condition, 'symbol') }}
                     </td>
                     <td class="px-6 py-4 font-mono text-sm font-bold text-blueprint-text">
                       {{ formatRate(alert.targetRate) }}
@@ -158,6 +158,7 @@ import CurrencyStrength from '@/components/CurrencyStrength.vue';
 import AlertForm from '@/components/AlertForm.vue';
 import Toast from '@/components/Toast.vue';
 import ForexChart from '@/components/ForexChart.vue';
+import { formatRate, formatCondition } from '@/utils/formatters';
 
 interface Alert {
   id: string | number;
@@ -243,7 +244,7 @@ const handleCreateAlert = async (formData: any) => {
     });
     
     showToast(
-      `Alert set for ${formData.baseCurrency}/${formData.targetCurrency} ${getConditionSymbol(formData.condition)} ${formData.targetRate}`,
+      `Alert set for ${formData.baseCurrency}/${formData.targetCurrency} ${formatCondition(formData.condition, 'symbol')} ${formData.targetRate}`,
       'success'
     );
     
@@ -273,18 +274,5 @@ const loadAlerts = async () => {
     console.error('Failed to load alerts:', error);
     showToast('Failed to load alerts', 'error');
   }
-};
-
-const getConditionSymbol = (condition: string | number): string => {
-  const conditionMap: Record<string, string> = {
-    '1': '>',
-    '2': '<',
-    '3': '=',
-  };
-  return conditionMap[String(condition)] || '?';
-};
-
-const formatRate = (rate: number): string => {
-  return rate?.toFixed(4) || '0.0000';
 };
 </script>
