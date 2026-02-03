@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { useAuthStore } from '@/stores/auth';
 
-const API_URL = 'http://localhost:5000/api/admin';
+const base_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = `${base_URL}/admin`;
 
 const getAuthHeaders = () => {
   const authStore = useAuthStore();

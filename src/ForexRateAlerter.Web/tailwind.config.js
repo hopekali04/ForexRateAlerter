@@ -18,8 +18,31 @@ export default {
           'system-ui',
           'sans-serif'
         ],
+        'mono': [
+          'Roboto Mono',
+          'Consolas',
+          'Monaco',
+          'Courier New',
+          'monospace'
+        ],
+        'sans': [
+          'Inter',
+          'Helvetica',
+          'Arial',
+          'sans-serif'
+        ],
       },
       colors: {
+        // Data-First Blueprint Palette
+        'blueprint-bg': '#F8FAFC',
+        'blueprint-surface': '#FFFFFF',
+        'blueprint-text': '#0F172A',
+        'blueprint-text-secondary': '#475569',
+        'blueprint-primary': '#22C55E',
+        'blueprint-border': '#E2E8F0',
+        'blueprint-error': '#EF4444',
+        'blueprint-warning': '#F59E0B',
+        
         'brand-blue': {
           '50': '#eff6ff',
           '100': '#dbeafe',

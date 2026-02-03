@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using ForexRateAlerter.Core.Interfaces;
 using ForexRateAlerter.Core.Models;
 using ForexRateAlerter.Infrastructure.Data;
@@ -48,12 +49,12 @@ namespace ForexRateAlerter.Infrastructure.Services
         {
             try
             {
-                var apiKey = _configuration["ExchangeRateApi:ApiKey"];
-                var baseUrl = _configuration["ExchangeRateApi:BaseUrl"];
+                var apiKey = _configuration["ExchangeRateApi:ApiKey"]?.Trim();
+                var baseUrl = _configuration["ExchangeRateApi:BaseUrl"]?.Trim();
 
                 foreach (var baseCurrency in _supportedCurrencies)
                 {
-                    var url = $"{baseUrl}/latest/{baseCurrency}?access_key={apiKey}";
+                    var url = $"{baseUrl}/{apiKey}/latest/{baseCurrency}";
                     var response = await _httpClient.GetAsync(url);
 
                     if (!response.IsSuccessStatusCode)
@@ -63,13 +64,16 @@ namespace ForexRateAlerter.Infrastructure.Services
                     }
 
                     var content = await response.Content.ReadAsStringAsync();
-                    var apiResponse = JsonSerializer.Deserialize<ExchangeRateApiResponse>(content);
+                    var apiResponse = JsonSerializer.Deserialize<ExchangeRateApiResponse>(content, new JsonSerializerOptions 
+                    { 
+                        PropertyNameCaseInsensitive = true 
+                    });
 
-                    if (apiResponse?.Success == true && apiResponse.Rates != null)
+                    if (apiResponse?.Result == "success" && apiResponse.ConversionRates != null)
                     {
                         var exchangeRates = new List<ExchangeRate>();
 
-                        foreach (var rate in apiResponse.Rates)
+                        foreach (var rate in apiResponse.ConversionRates)
                         {
                             if (_supportedCurrencies.Contains(rate.Key) && rate.Key != baseCurrency)
                             {
@@ -111,10 +115,125 @@ namespace ForexRateAlerter.Infrastructure.Services
                 .ToListAsync();
         }
 
+        public async Task<IEnumerable<OHLCData>> GetOHLCDataAsync(string baseCurrency, string targetCurrency, string timeframe = "1h", int limit = 100)
+        {
+            // Parse timeframe (1m, 5m, 15m, 1h, 1D)
+            var (interval, intervalType) = ParseTimeframe(timeframe);
+            
+            // Calculate how far back to fetch data
+            var daysToFetch = CalculateDaysToFetch(interval, intervalType, limit);
+            var fromDate = DateTime.UtcNow.AddDays(-daysToFetch);
+
+            // Fetch raw rates
+            var rates = await _context.ExchangeRates
+                .Where(r => r.BaseCurrency == baseCurrency && 
+                           r.TargetCurrency == targetCurrency && 
+                           r.Timestamp >= fromDate)
+                .OrderBy(r => r.Timestamp)
+                .Take(limit * 2) // Limit raw records to a reasonable multiple of the requested limit
+                .ToListAsync();
+
+            if (!rates.Any())
+                return new List<OHLCData>();
+
+            // Group by timeframe and aggregate to OHLC
+            var ohlcData = new List<OHLCData>();
+            
+            foreach (var group in GroupByTimeframe(rates, interval, intervalType))
+            {
+                if (!group.Any()) continue;
+
+                ohlcData.Add(new OHLCData
+                {
+                    Time = group.Key,
+                    Open = group.First().Rate,
+                    High = group.Max(r => r.Rate),
+                    Low = group.Min(r => r.Rate),
+                    Close = group.Last().Rate,
+                    BaseCurrency = baseCurrency,
+                    TargetCurrency = targetCurrency
+                });
+            }
+
+            return ohlcData.TakeLast(limit).ToList();
+        }
+
+        private (int interval, string type) ParseTimeframe(string timeframe)
+        {
+            // Parse formats like "1m", "5m", "15m", "1h", "1D", or just "D" (defaults to 1)
+            if (string.IsNullOrWhiteSpace(timeframe))
+            {
+                throw new ArgumentException("Timeframe cannot be null or empty.", nameof(timeframe));
+            }
+
+            // Regex pattern: optional digits followed by required letter(s)
+            var match = Regex.Match(timeframe.Trim(), @"^(\d*)([a-zA-Z]+)$");
+            
+            if (!match.Success)
+            {
+                throw new ArgumentException(
+                    $"Invalid timeframe format '{timeframe}'. Expected format: [number]unit (e.g., '1h', '5m', '1D', or 'D').", 
+                    nameof(timeframe));
+            }
+
+            // Extract number (default to 1 if not provided)
+            var numberStr = match.Groups[1].Value;
+            var interval = string.IsNullOrEmpty(numberStr) ? 1 : int.Parse(numberStr);
+            
+            // Extract and validate unit
+            var unit = match.Groups[2].Value.ToLower();
+            
+            // Validate supported timeframe units
+            if (!new[] { "m", "h", "d" }.Contains(unit))
+            {
+                throw new ArgumentException(
+                    $"Unsupported timeframe unit '{unit}'. Supported units: m (minutes), h (hours), d (days).", 
+                    nameof(timeframe));
+            }
+
+            if (interval <= 0)
+            {
+                throw new ArgumentException(
+                    $"Timeframe interval must be positive. Got: {interval}", 
+                    nameof(timeframe));
+            }
+            
+            return (interval, unit);
+        }
+
+        private int CalculateDaysToFetch(int interval, string intervalType, int limit)
+        {
+            return intervalType switch
+            {
+                "m" => Math.Max((interval * limit) / (60 * 24), 1), // Minutes to days
+                "h" => Math.Max((interval * limit) / 24, 1),        // Hours to days
+                "d" => interval * limit,                             // Days
+                _ => 7 // Default to 1 week
+            };
+        }
+
+        private IEnumerable<IGrouping<DateTime, ExchangeRate>> GroupByTimeframe(
+            List<ExchangeRate> rates, int interval, string intervalType)
+        {
+            return intervalType switch
+            {
+                "m" => rates.GroupBy(r => new DateTime(
+                    r.Timestamp.Year, r.Timestamp.Month, r.Timestamp.Day,
+                    r.Timestamp.Hour, (r.Timestamp.Minute / interval) * interval, 0)),
+                "h" => rates.GroupBy(r => new DateTime(
+                    r.Timestamp.Year, r.Timestamp.Month, r.Timestamp.Day,
+                    (r.Timestamp.Hour / interval) * interval, 0, 0)),
+                "d" => rates.GroupBy(r => new DateTime(
+                    r.Timestamp.Year, r.Timestamp.Month, r.Timestamp.Day)),
+                _ => rates.GroupBy(r => r.Timestamp.Date)
+            };
+        }
+
         private class ExchangeRateApiResponse
         {
-            public bool Success { get; set; }
-            public Dictionary<string, decimal> Rates { get; set; } = new();
+            public string? Result { get; set; }
+            [System.Text.Json.Serialization.JsonPropertyName("conversion_rates")]
+            public Dictionary<string, decimal> ConversionRates { get; set; } = new();
         }
     }
 }

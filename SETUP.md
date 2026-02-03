@@ -113,6 +113,74 @@ Once the application is running, you can access the Swagger UI in your web brows
 
 You will see the Swagger documentation, where you can test the endpoints, including user registration, login, and creating alerts.
 
+## 6. Set Up and Run the Frontend UI
+
+The frontend is a Vue 3 application built with Vite and styled with Tailwind CSS.
+
+### Prerequisites
+
+Ensure you have **Node.js** (version 20.19.0 or higher) and **pnpm** installed:
+
+```bash
+# Install pnpm globally (if not already installed)
+npm install -g pnpm
+
+# Verify installation
+pnpm --version
+```
+
+### Installation and Running
+
+1. Navigate to the Web project directory:
+
+    ```bash
+    cd src/ForexRateAlerter.Web
+    ```
+
+2. Install dependencies using pnpm:
+
+    ```bash
+    pnpm install
+    ```
+
+3. Start the development server:
+
+    ```bash
+    pnpm run dev
+    ```
+
+4. The UI will be available at:
+
+    ```
+    http://localhost:5173/
+    ```
+
+### Accessing the Application
+
+Once both the API and UI are running:
+
+-   **Frontend**: [http://localhost:5173](http://localhost:5173) - Register, login, and manage your forex rate alerts
+-   **Backend API**: [http://localhost:5000](http://localhost:5000) - Swagger API documentation
+-   **Vue DevTools**: Press `Alt+Shift+D` in the browser to access Vue DevTools for debugging
+
+### Building for Production
+
+To create a production build:
+
+```bash
+pnpm run build
+```
+
+The optimized assets will be generated in the `dist/` directory.
+
+### Previewing the Production Build
+
+To preview the production build locally:
+
+```bash
+pnpm run preview
+```
+
 ---
 
-You have now successfully set up and launched the Forex Rate Alerter application.
+You have now successfully set up and launched the complete Forex Rate Alerter application with both backend API and frontend UI.
