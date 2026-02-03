@@ -1,5 +1,5 @@
 <template>
-  <div class="border-b border-blueprint-border bg-blueprint-surface overflow-hidden">
+  <div class="border-b border-blueprint-border bg-blueprint-surface overflow-hidden mt-3">
     <div class="ticker-wrapper">
       <div v-if="isLoading" class="flex items-center justify-center h-full">
         <span class="font-sans text-xs text-blueprint-text-secondary">Loading rates...</span>
