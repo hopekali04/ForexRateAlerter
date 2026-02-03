@@ -68,11 +68,11 @@ namespace ForexRateAlerter.Infrastructure.Services
                         PropertyNameCaseInsensitive = true 
                     });
 
-                    if (apiResponse?.Result == "success" && apiResponse.Conversion_rates != null)
+                    if (apiResponse?.Result == "success" && apiResponse.ConversionRates != null)
                     {
                         var exchangeRates = new List<ExchangeRate>();
 
-                        foreach (var rate in apiResponse.Conversion_rates)
+                        foreach (var rate in apiResponse.ConversionRates)
                         {
                             if (_supportedCurrencies.Contains(rate.Key) && rate.Key != baseCurrency)
                             {
@@ -196,7 +196,8 @@ namespace ForexRateAlerter.Infrastructure.Services
         private class ExchangeRateApiResponse
         {
             public string? Result { get; set; }
-            public Dictionary<string, decimal> Conversion_rates { get; set; } = new();
+            [System.Text.Json.Serialization.JsonPropertyName("conversion_rates")]
+            public Dictionary<string, decimal> ConversionRates { get; set; } = new();
         }
     }
 }
