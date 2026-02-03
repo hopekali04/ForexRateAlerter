@@ -909,7 +909,7 @@ const renderChart = (history: ExchangeRate[]) => {
           displayColors: false,
           callbacks: {
             label: function(context) {
-              return 'Rate: ' + context.parsed.y.toFixed(4);
+              return 'Rate: ' + (context.parsed.y?.toFixed(4) ?? 'N/A');
             },
           },
         },
