@@ -129,6 +129,7 @@ namespace ForexRateAlerter.Infrastructure.Services
                            r.TargetCurrency == targetCurrency && 
                            r.Timestamp >= fromDate)
                 .OrderBy(r => r.Timestamp)
+                .Take(limit * 2) // Limit raw records to a reasonable multiple of the requested limit
                 .ToListAsync();
 
             if (!rates.Any())
