@@ -185,8 +185,8 @@ namespace ForexRateAlerter.Tests.Services
 
             return new
             {
-                Success = true,
-                Rates = rates
+                result = "success",
+                conversion_rates = rates
             };
         }
     }
