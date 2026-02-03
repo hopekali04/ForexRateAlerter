@@ -272,142 +272,13 @@
     </div>
 
     <!-- Create/Edit Modal -->
-    <div
-      v-if="showModal"
-      class="fixed inset-0 z-50 overflow-y-auto"
-      @click.self="closeModal"
-    >
-      <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
-        
-        <div class="relative bg-white border border-solid border-gray-300 w-full max-w-lg p-8 z-10">
-          <!-- Modal Header -->
-          <div class="mb-6">
-            <h2 class="text-2xl font-bold text-slate-900 mb-2">
-              {{ isEditMode ? 'Edit Alert' : 'Create New Alert' }}
-            </h2>
-            <p class="text-gray-600">
-              {{ isEditMode ? 'Update your alert settings' : 'Set up a new forex rate alert' }}
-            </p>
-          </div>
-
-          <!-- Modal Form -->
-          <form @submit.prevent="submitAlert" class="space-y-6">
-            <!-- Currency Pair -->
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Base Currency <span class="text-red-600">*</span>
-                </label>
-                <select
-                  v-model="formData.baseCurrency"
-                  :disabled="isEditMode"
-                  required
-                  class="block w-full px-4 py-3 text-slate-900 bg-white border border-solid border-gray-300 focus:outline-none focus:border-green-500 transition-all duration-200 disabled:bg-gray-50 disabled:text-gray-500"
-                >
-                  <option value="" disabled>Select</option>
-                  <option v-for="currency in currencies" :key="currency" :value="currency">
-                    {{ currency }}
-                  </option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Target Currency <span class="text-red-600">*</span>
-                </label>
-                <select
-                  v-model="formData.targetCurrency"
-                  :disabled="isEditMode"
-                  required
-                  class="block w-full px-4 py-3 text-slate-900 bg-white border border-solid border-gray-300 focus:outline-none focus:border-green-500 transition-all duration-200 disabled:bg-gray-50 disabled:text-gray-500"
-                >
-                  <option value="" disabled>Select</option>
-                  <option v-for="currency in currencies" :key="currency" :value="currency">
-                    {{ currency }}
-                  </option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Condition -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Condition <span class="text-red-600">*</span>
-              </label>
-              <select
-                v-model="formData.condition"
-                required
-                class="block w-full px-4 py-3 text-slate-900 bg-white border border-solid border-gray-300 focus:outline-none focus:border-green-500 transition-all duration-200"
-              >
-                <option value="" disabled>Select condition</option>
-                <option value="1">Greater Than (>)</option>
-                <option value="2">Less Than (<)</option>
-                <option value="3">Equal To (=)</option>
-              </select>
-            </div>
-
-            <!-- Target Rate -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">
-                Target Rate <span class="text-red-600">*</span>
-              </label>
-              <input
-                v-model.number="formData.targetRate"
-                type="number"
-                step="0.0001"
-                min="0.001"
-                required
-                placeholder="Enter target rate (e.g., 1.2500)"
-                class="block w-full px-4 py-3 text-slate-900 font-mono placeholder-gray-500 bg-white border border-solid border-gray-300 focus:outline-none focus:border-green-500 transition-all duration-200"
-              />
-              <p class="mt-2 text-sm text-gray-600">
-                Alert will trigger when the exchange rate meets this condition
-              </p>
-            </div>
-
-            <!-- Active Status (Edit Mode Only) -->
-            <div v-if="isEditMode" class="flex items-center">
-              <input
-                v-model="formData.isActive"
-                type="checkbox"
-                id="isActive"
-                class="w-4 h-4 text-green-500 border-gray-300 focus:ring-green-500"
-              />
-              <label for="isActive" class="ml-2 text-sm font-medium text-gray-700">
-                Alert is active
-              </label>
-            </div>
-
-            <!-- Form Actions -->
-            <div class="flex gap-3 pt-4">
-              <button
-                type="submit"
-                :disabled="submitting"
-                class="flex-1 inline-flex justify-center items-center px-6 py-3 text-sm font-semibold text-white bg-green-500 border border-solid border-gray-300 hover:bg-green-600 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-              >
-                <span v-if="!submitting">{{ isEditMode ? 'Update Alert' : 'Create Alert' }}</span>
-                <span v-else class="flex items-center">
-                  <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  {{ isEditMode ? 'Updating...' : 'Creating...' }}
-                </span>
-              </button>
-              <button
-                type="button"
-                @click="closeModal"
-                :disabled="submitting"
-                class="flex-1 inline-flex justify-center items-center px-6 py-3 text-sm font-semibold text-gray-700 bg-white border border-solid border-gray-300 hover:bg-gray-50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+    <AlertForm
+      :is-open="showModal"
+      :is-edit="isEditMode"
+      :initial-data="alertToEdit"
+      @close="closeModal"
+      @submit="handleAlertSubmit"
+    />
 
     <!-- Delete Confirmation Modal -->
     <div
@@ -473,6 +344,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { getUserAlerts, createAlert as createAlertAPI, updateAlert as updateAlertAPI, deleteAlert as deleteAlertAPI } from '@/services/alertService';
+import AlertForm, { type AlertFormData } from '@/components/AlertForm.vue';
 
 interface Alert {
   id: number;
@@ -484,13 +356,6 @@ interface Alert {
   createdAt: string;
   lastTriggeredAt: string | null;
 }
-
-// Common currency codes
-const currencies = [
-  'USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD',
-  'MWK', 'ZAR', 'CNY', 'INR', 'BRL', 'MXN', 'RUB', 'KRW',
-  'SGD', 'HKD', 'NOK', 'SEK', 'DKK', 'PLN', 'THB', 'IDR'
-];
 
 const alerts = ref<Alert[]>([]);
 const loading = ref(true);
@@ -506,13 +371,7 @@ const deleting = ref(false);
 const alertToDelete = ref<Alert | null>(null);
 
 // Form data
-const formData = ref({
-  baseCurrency: '',
-  targetCurrency: '',
-  condition: '',
-  targetRate: 0,
-  isActive: true,
-});
+const alertToEdit = ref<AlertFormData | null>(null);
 const editingAlertId = ref<number | null>(null);
 
 // Statistics
@@ -571,23 +430,28 @@ const loadAlerts = async () => {
 // Modal management
 const openCreateModal = () => {
   isEditMode.value = false;
-  formData.value = {
-    baseCurrency: '',
-    targetCurrency: '',
-    condition: '',
-    targetRate: 0,
-    isActive: true,
-  };
+  alertToEdit.value = null;
   showModal.value = true;
 };
 
 const openEditModal = (alert: Alert) => {
   isEditMode.value = true;
   editingAlertId.value = alert.id;
-  formData.value = {
+  
+  // Map backend naming to form IDs if necessary
+  const conditionMap: Record<string, string> = {
+    'GreaterThan': '1',
+    'LessThan': '2',
+    'EqualTo': '3',
+    '1': '1',
+    '2': '2',
+    '3': '3'
+  };
+
+  alertToEdit.value = {
     baseCurrency: alert.baseCurrency,
     targetCurrency: alert.targetCurrency,
-    condition: alert.condition,
+    condition: conditionMap[alert.condition] || alert.condition,
     targetRate: alert.targetRate,
     isActive: alert.isActive,
   };
@@ -598,6 +462,7 @@ const closeModal = () => {
   showModal.value = false;
   isEditMode.value = false;
   editingAlertId.value = null;
+  alertToEdit.value = null;
 };
 
 const confirmDeleteAlert = (alert: Alert) => {
@@ -611,7 +476,7 @@ const closeDeleteModal = () => {
 };
 
 // Submit alert (create or update)
-const submitAlert = async () => {
+const handleAlertSubmit = async (data: AlertFormData) => {
   if (submitting.value) return;
 
   try {
@@ -620,18 +485,18 @@ const submitAlert = async () => {
     if (isEditMode.value && editingAlertId.value) {
       // Update existing alert
       const updateData = {
-        condition: parseInt(formData.value.condition),
-        targetRate: formData.value.targetRate,
-        isActive: formData.value.isActive,
+        condition: parseInt(data.condition.toString()),
+        targetRate: parseFloat(data.targetRate!.toString()),
+        isActive: data.isActive,
       };
       await updateAlertAPI(editingAlertId.value, updateData);
     } else {
       // Create new alert
       const createData = {
-        baseCurrency: formData.value.baseCurrency,
-        targetCurrency: formData.value.targetCurrency,
-        condition: parseInt(formData.value.condition),
-        targetRate: formData.value.targetRate,
+        baseCurrency: data.baseCurrency,
+        targetCurrency: data.targetCurrency,
+        condition: parseInt(data.condition.toString()),
+        targetRate: parseFloat(data.targetRate!.toString()),
       };
       await createAlertAPI(createData);
     }

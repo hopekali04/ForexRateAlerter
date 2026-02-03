@@ -12,8 +12,12 @@
           <!-- Header -->
           <div class="border-b border-blueprint-border px-6 py-4 flex justify-between items-center bg-white">
             <div>
-              <h2 class="font-sans text-lg font-bold text-blueprint-text uppercase">Set Currency Alert</h2>
-              <p class="font-sans text-xs text-blueprint-text-secondary mt-1">Configure your forex rate monitoring parameters</p>
+              <h2 class="font-sans text-lg font-bold text-blueprint-text uppercase">
+                {{ isEdit ? 'Edit Alert' : 'Set Currency Alert' }}
+              </h2>
+              <p class="font-sans text-xs text-blueprint-text-secondary mt-1">
+                {{ isEdit ? 'Update your monitoring parameters' : 'Configure your forex rate monitoring parameters' }}
+              </p>
             </div>
             <button 
               @click="closeModal"
@@ -36,7 +40,8 @@
                 </label>
                 <select 
                   v-model="formData.baseCurrency"
-                  class="w-full px-4 py-3 border border-blueprint-border bg-blueprint-surface text-blueprint-text font-mono text-sm focus:outline-none focus:border-2 focus:border-blueprint-primary"
+                  :disabled="isEdit"
+                  class="w-full px-4 py-3 border border-blueprint-border bg-blueprint-surface text-blueprint-text font-mono text-sm focus:outline-none focus:border-2 focus:border-blueprint-primary disabled:opacity-50"
                   required
                 >
                   <option value="">Select Base</option>
@@ -53,7 +58,8 @@
                 </label>
                 <select 
                   v-model="formData.targetCurrency"
-                  class="w-full px-4 py-3 border border-blueprint-border bg-blueprint-surface text-blueprint-text font-mono text-sm focus:outline-none focus:border-2 focus:border-blueprint-primary"
+                  :disabled="isEdit"
+                  class="w-full px-4 py-3 border border-blueprint-border bg-blueprint-surface text-blueprint-text font-mono text-sm focus:outline-none focus:border-2 focus:border-blueprint-primary disabled:opacity-50"
                   required
                 >
                   <option value="">Select Target</option>
@@ -97,6 +103,19 @@
               </div>
             </div>
 
+            <!-- Active Status (Edit Mode Only) -->
+            <div v-if="isEdit" class="mt-4 flex items-center">
+              <input
+                v-model="formData.isActive"
+                type="checkbox"
+                id="isActive"
+                class="w-4 h-4 text-blueprint-primary border-blueprint-border focus:ring-blueprint-primary"
+              />
+              <label for="isActive" class="ml-2 font-sans text-sm font-bold text-blueprint-text uppercase">
+                Alert is active
+              </label>
+            </div>
+
             <!-- Action Buttons -->
             <div class="mt-6 flex gap-3 justify-end">
               <button 
@@ -111,7 +130,7 @@
                 :disabled="isSubmitting"
                 class="px-6 py-3 bg-blueprint-primary border border-blueprint-primary text-white font-sans text-sm font-bold uppercase hover:bg-blueprint-text hover:border-blueprint-text transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {{ isSubmitting ? 'CREATING...' : 'CREATE ALERT' }}
+                {{ isSubmitting ? (isEdit ? 'UPDATING...' : 'CREATING...') : (isEdit ? 'UPDATE ALERT' : 'CREATE ALERT') }}
               </button>
             </div>
           </form>
@@ -124,20 +143,25 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 
-interface AlertFormData {
+export interface AlertFormData {
   baseCurrency: string;
   targetCurrency: string;
   condition: string | number;
-  targetRate: string | null;
+  targetRate: string | number | null;
+  isActive?: boolean;
 }
 
 interface Props {
   isOpen: boolean;
   prefillPair?: string;
+  isEdit?: boolean;
+  initialData?: AlertFormData | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   prefillPair: '',
+  isEdit: false,
+  initialData: null,
 });
 
 const emit = defineEmits<{
@@ -158,13 +182,40 @@ const formData = ref<AlertFormData>({
   targetCurrency: '',
   condition: '1',
   targetRate: null,
+  isActive: true,
 });
 
 const isSubmitting = ref(false);
 
-// Watch for prefill from currency pair click
+// Watch for initialData when opening in edit mode
+watch(() => props.isOpen, (isOpen) => {
+  if (isOpen && props.isEdit && props.initialData) {
+    formData.value = { 
+      ...props.initialData,
+      targetRate: props.initialData.targetRate?.toString() || null 
+    };
+  } else if (isOpen && !props.isEdit) {
+    // Reset for create mode
+    formData.value = {
+      baseCurrency: '',
+      targetCurrency: '',
+      condition: '1',
+      targetRate: null,
+      isActive: true,
+    };
+    
+    // Apply prefill if available
+    if (props.prefillPair && props.prefillPair.includes('/')) {
+      const [base, target] = props.prefillPair.split('/');
+      formData.value.baseCurrency = base;
+      formData.value.targetCurrency = target;
+    }
+  }
+});
+
+// Watch for prefill from currency pair click (for create mode)
 watch(() => props.prefillPair, (newPair) => {
-  if (newPair && newPair.includes('/')) {
+  if (newPair && newPair.includes('/') && !props.isEdit) {
     const [base, target] = newPair.split('/');
     formData.value.baseCurrency = base;
     formData.value.targetCurrency = target;
@@ -180,6 +231,7 @@ const closeModal = () => {
       targetCurrency: '',
       condition: '1',
       targetRate: null,
+      isActive: true,
     };
     isSubmitting.value = false;
   }, 300);
@@ -190,7 +242,7 @@ const handleSubmit = () => {
   
   // Validate target rate format
   const rateValue = formData.value.targetRate;
-  if (!rateValue || isNaN(parseFloat(rateValue))) {
+  if (rateValue === null || rateValue === undefined || isNaN(parseFloat(rateValue.toString()))) {
     return;
   }
 
@@ -198,8 +250,13 @@ const handleSubmit = () => {
   
   emit('submit', {
     ...formData.value,
-    targetRate: parseFloat(rateValue).toFixed(4), // Ensure 4 decimal precision
+    targetRate: parseFloat(rateValue.toString()).toFixed(4), // Ensure 4 decimal precision
   });
+  // We don't automatically close here in case the parent wants to handle errors
+  // But UserDashboardView expects it to close. 
+  // AlertsView will also expect it to close or will close it itself.
+  // Actually, AlertsView's submitAlert closes it on success.
+  // The original AlertForm closed it immediately.
   closeModal();
 };
 </script>
