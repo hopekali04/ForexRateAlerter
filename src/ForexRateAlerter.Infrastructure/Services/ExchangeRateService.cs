@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using ForexRateAlerter.Core.Interfaces;
 using ForexRateAlerter.Core.Models;
 using ForexRateAlerter.Infrastructure.Data;
@@ -159,11 +160,45 @@ namespace ForexRateAlerter.Infrastructure.Services
 
         private (int interval, string type) ParseTimeframe(string timeframe)
         {
-            // Parse formats like "1m", "5m", "15m", "1h", "1D"
-            var number = int.Parse(new string(timeframe.Where(char.IsDigit).ToArray()));
-            var unit = new string(timeframe.Where(char.IsLetter).ToArray()).ToLower();
+            // Parse formats like "1m", "5m", "15m", "1h", "1D", or just "D" (defaults to 1)
+            if (string.IsNullOrWhiteSpace(timeframe))
+            {
+                throw new ArgumentException("Timeframe cannot be null or empty.", nameof(timeframe));
+            }
+
+            // Regex pattern: optional digits followed by required letter(s)
+            var match = Regex.Match(timeframe.Trim(), @"^(\d*)([a-zA-Z]+)$");
             
-            return (number, unit);
+            if (!match.Success)
+            {
+                throw new ArgumentException(
+                    $"Invalid timeframe format '{timeframe}'. Expected format: [number]unit (e.g., '1h', '5m', '1D', or 'D').", 
+                    nameof(timeframe));
+            }
+
+            // Extract number (default to 1 if not provided)
+            var numberStr = match.Groups[1].Value;
+            var interval = string.IsNullOrEmpty(numberStr) ? 1 : int.Parse(numberStr);
+            
+            // Extract and validate unit
+            var unit = match.Groups[2].Value.ToLower();
+            
+            // Validate supported timeframe units
+            if (!new[] { "m", "h", "d" }.Contains(unit))
+            {
+                throw new ArgumentException(
+                    $"Unsupported timeframe unit '{unit}'. Supported units: m (minutes), h (hours), d (days).", 
+                    nameof(timeframe));
+            }
+
+            if (interval <= 0)
+            {
+                throw new ArgumentException(
+                    $"Timeframe interval must be positive. Got: {interval}", 
+                    nameof(timeframe));
+            }
+            
+            return (interval, unit);
         }
 
         private int CalculateDaysToFetch(int interval, string intervalType, int limit)
