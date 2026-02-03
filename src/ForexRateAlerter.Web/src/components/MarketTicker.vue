@@ -27,6 +27,27 @@
             {{ rate.change >= 0 ? '▲' : '▼' }} {{ Math.abs(rate.change).toFixed(2) }}%
           </span>
         </div>
+        <!-- Duplicate content for seamless animation -->
+        <div 
+          v-for="(rate, index) in tickerRates" 
+          :key="`${rate.pair}-${index}-clone`"
+          class="ticker-item"
+          aria-hidden="true"
+        >
+          <span class="font-sans text-xs font-semibold text-blueprint-text uppercase">{{ rate.pair }}</span>
+          <span 
+            class="font-mono text-xs font-bold ml-2"
+            :class="rate.change >= 0 ? 'text-blueprint-primary' : 'text-blueprint-error'"
+          >
+            {{ rate.rate }}
+          </span>
+          <span 
+            class="font-mono text-xs ml-1"
+            :class="rate.change >= 0 ? 'text-blueprint-primary' : 'text-blueprint-error'"
+          >
+            {{ rate.change >= 0 ? '▲' : '▼' }} {{ Math.abs(rate.change).toFixed(2) }}%
+          </span>
+        </div>
       </div>
     </div>
   </div>
