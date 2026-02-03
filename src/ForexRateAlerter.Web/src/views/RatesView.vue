@@ -774,8 +774,7 @@ const openRateDetails = async (rate: any) => {
   conversionAmount.value = 1;
   showDetailsModal.value = true;
   
-  // Load chart data after modal is visible
-  await nextTick();
+  // Start loading chart data immediately to overlap with modal animation
   loadChartData();
 };
 
@@ -812,15 +811,13 @@ const loadChartData = async () => {
     console.log('History response:', response);
     
     if (response.history && response.history.length > 0) {
-      // Wait for next tick to ensure canvas is in DOM
+      // Use nextTick to ensure the canvas is available in the DOM after any state changes
       await nextTick();
-      await new Promise(resolve => setTimeout(resolve, 50)); // Extra delay to ensure DOM is ready
       
       if (chartCanvas.value) {
         console.log('Canvas found, rendering chart');
         renderChart(response.history);
       } else {
-        console.error('Canvas still not available after waiting');
         chartError.value = 'Chart canvas not ready. Please try again.';
       }
     } else {
