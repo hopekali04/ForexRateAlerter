@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ForexRateAlerter.Core.Interfaces;
+using ForexRateAlerter.Core.DTOs;
 
 namespace ForexRateAlerter.Api.Controllers
 {
@@ -10,6 +11,7 @@ namespace ForexRateAlerter.Api.Controllers
     public class ExchangeRateController : ControllerBase
     {
         private readonly IExchangeRateService _exchangeRateService;
+        private static readonly HashSet<string> ValidTimeframes = new() { "1m", "5m", "15m", "1h", "1D" };
 
         public ExchangeRateController(IExchangeRateService exchangeRateService)
         {
@@ -64,8 +66,7 @@ namespace ForexRateAlerter.Api.Controllers
             [FromQuery] string timeframe = "1h", [FromQuery] int limit = 100)
         {
             // Validate timeframe
-            var validTimeframes = new[] { "1m", "5m", "15m", "1h", "1D" };
-            if (!validTimeframes.Contains(timeframe))
+            if (!ValidTimeframes.Contains(timeframe))
                 return BadRequest(new { error = "Invalid timeframe. Allowed: 1m, 5m, 15m, 1h, 1D" });
 
             // Validate limit
@@ -75,14 +76,17 @@ namespace ForexRateAlerter.Api.Controllers
             var candles = await _exchangeRateService.GetOHLCDataAsync(
                 baseCurrency.ToUpper(), targetCurrency.ToUpper(), timeframe, limit);
 
-            return Ok(new { 
-                candles, 
-                timeframe, 
-                count = candles.Count(),
-                baseCurrency = baseCurrency.ToUpper(),
-                targetCurrency = targetCurrency.ToUpper(),
-                timestamp = DateTime.UtcNow 
-            });
+            var response = new OhlcDataResponse
+            {
+                Candles = candles,
+                Timeframe = timeframe,
+                Count = candles.Count(),
+                BaseCurrency = baseCurrency.ToUpper(),
+                TargetCurrency = targetCurrency.ToUpper(),
+                Timestamp = DateTime.UtcNow
+            };
+
+            return Ok(response);
         }
 
         /// <summary>
