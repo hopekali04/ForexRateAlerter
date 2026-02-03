@@ -345,6 +345,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { getUserAlerts, createAlert as createAlertAPI, updateAlert as updateAlertAPI, deleteAlert as deleteAlertAPI } from '@/services/alertService';
 import AlertForm, { type AlertFormData } from '@/components/AlertForm.vue';
+import { formatRate, formatCondition, formatDate } from '@/utils/formatters';
 
 interface Alert {
   id: number;
@@ -534,39 +535,6 @@ const deleteAlert = async () => {
   } finally {
     deleting.value = false;
   }
-};
-
-// Formatting helpers
-const formatCondition = (condition: string): string => {
-  const conditionMap: Record<string, string> = {
-    '1': 'Greater Than (>)',
-    '2': 'Less Than (<)',
-    '3': 'Equal To (=)',
-    'GreaterThan': 'Greater Than (>)',
-    'LessThan': 'Less Than (<)',
-    'EqualTo': 'Equal To (=)',
-  };
-  return conditionMap[condition] || condition;
-};
-
-const formatRate = (rate: number): string => {
-  return rate.toFixed(4);
-};
-
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  
-  return date.toLocaleDateString();
 };
 
 onMounted(() => {
