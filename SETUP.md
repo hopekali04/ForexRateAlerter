@@ -6,7 +6,7 @@ This guide provides detailed, step-by-step instructions for setting up the Forex
 
 Before you begin, ensure you have the following tools installed on your machine:
 
--   **.NET 7 SDK**: [Download & Install .NET 7](https://dotnet.microsoft.com/download/dotnet/7.0)
+-   **.NET 8 SDK**: [Download & Install .NET 8](https://dotnet.microsoft.com/download/dotnet/8.0)
 -   **SQL Server**: A local instance of SQL Server (e.g., SQL Server Express or SQL Server Developer Edition).
 -   **Git**: For cloning the repository.
 -   **An IDE or Code Editor**:
@@ -180,6 +180,28 @@ To preview the production build locally:
 ```bash
 pnpm run preview
 ```
+
+## 7. Running Tests
+
+The solution includes unit and integration tests to ensure system reliability.
+
+### Running All Tests
+
+To run all tests in the solution:
+
+```bash
+dotnet test
+```
+
+### Running SMTP Integration Tests
+
+To specifically test the SMTP connectivity (ensuring your email settings are correct):
+
+```bash
+dotnet test src/ForexRateAlerter.Tests/ForexRateAlerter.Tests.csproj --filter "FullyQualifiedName~EmailServiceIntegrationTests"
+```
+
+*Note: The integration tests use the credentials configured in the test project's `appsettings.json` or environment variables.*
 
 ---
 

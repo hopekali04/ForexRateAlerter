@@ -28,11 +28,11 @@ This project includes a comprehensive documentation suite to provide a deep unde
 
 ## Technologies Used
 
--   **.NET 7**: Core framework for the application.
+-   **.NET 8**: Core framework for the application.
 -   **ASP.NET Core**: For building the robust REST API.
 -   **Entity Framework Core**: For data access and database management.
 -   **SQL Server**: As the primary relational database.
 -   **JWT (JSON Web Tokens)**: For securing API endpoints.
 -   **Serilog**: For structured and flexible logging.
 -   **Swagger/OpenAPI**: For API documentation and testing.
--   **xUnit & Moq**: For unit and integration testing.
+-   **NUnit & Moq**: For unit and integration testing.
