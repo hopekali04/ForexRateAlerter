@@ -47,7 +47,22 @@ namespace ForexRateAlerter.Api.Controllers
             if (!result.Success)
                 return Unauthorized(new { error = result.Error });
 
-            return Ok(new { token = result.Token, message = "Login successful" });
+            var user = await _authService.GetUserByIdAsync(int.Parse(result.UserId));
+
+            return Ok(new 
+            { 
+                token = result.Token, 
+                user = new
+                {
+                    id = user?.Id,
+                    email = user?.Email,
+                    firstName = user?.FirstName,
+                    lastName = user?.LastName,
+                    role = user?.Role,
+                    createdAt = user?.CreatedAt
+                },
+                message = "Login successful" 
+            });
         }
 
         /// <summary>
