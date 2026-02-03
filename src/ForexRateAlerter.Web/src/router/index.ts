@@ -1,12 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
-import LoginView from '../views/LoginView.vue'
-import RegisterView from '../views/RegisterView.vue'
-import UserDashboardView from '../views/UserDashboardView.vue'
-import AdminDashboardView from '../views/AdminDashboardView.vue'
-import AlertsView from '../views/AlertsView.vue'
-import RatesView from '../views/RatesView.vue'
-import NotFoundView from '@/views/NotFoundView.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
@@ -15,40 +7,40 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: HomeView
+      component: () => import('../views/HomeView.vue')
     },
     {
       path: '/login',
       name: 'login',
-      component: LoginView
+      component: () => import('../views/LoginView.vue')
     },
     {
       path: '/register',
       name: 'register',
-      component: RegisterView
+      component: () => import('../views/RegisterView.vue')
     },
     {
       path: '/dashboard',
       name: 'dashboard',
-      component: UserDashboardView,
+      component: () => import('../views/UserDashboardView.vue'),
       meta: { requiresAuth: true, roles: ['User'] }
     },
     {
       path: '/alerts',
       name: 'alerts',
-      component: AlertsView,
+      component: () => import('../views/AlertsView.vue'),
       meta: { requiresAuth: true, roles: ['User'] }
     },
     {
       path: '/rates',
       name: 'rates',
-      component: RatesView,
+      component: () => import('../views/RatesView.vue'),
       meta: { requiresAuth: true, roles: ['User'] }
     },
     {
       path: '/admin',
       name: 'admin',
-      component: AdminDashboardView,
+      component: () => import('../views/AdminDashboardView.vue'),
       meta: { requiresAuth: true, roles: ['Admin'] }
     },
     {
@@ -62,7 +54,7 @@ const router = createRouter({
     {
       path: '/:pathMatch(.*)*',
       name: 'NotFound',
-      component: NotFoundView,  
+      component: () => import('@/views/NotFoundView.vue'),  
     }
   ]
 })
