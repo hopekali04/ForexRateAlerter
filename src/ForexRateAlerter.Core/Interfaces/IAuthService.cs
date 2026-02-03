@@ -4,7 +4,7 @@ namespace ForexRateAlerter.Core.Interfaces
 {
     public interface IAuthService
     {
-        Task<(bool Success, string Token, string Error)> LoginAsync(LoginDto loginDto);
+        Task<(bool Success, string Token, string UserId, string Error)> LoginAsync(LoginDto loginDto);
         Task<(bool Success, UserResponseDto? User, string Error)> RegisterAsync(RegisterDto registerDto);
         Task<(bool Success, UserResponseDto? User, string Error)> CreateAdminAsync(RegisterDto registerDto);
         Task<UserResponseDto?> GetUserByIdAsync(int userId);
