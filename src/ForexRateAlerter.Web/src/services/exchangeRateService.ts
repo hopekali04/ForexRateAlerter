@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { useAuthStore } from '@/stores/auth';
 
-const API_URL = 'http://localhost:5000/api/exchangerate';
+const base_Url = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = `${base_Url}/exchangerate`;
 
 export interface ExchangeRate {
   id: number;
