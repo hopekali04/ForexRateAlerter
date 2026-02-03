@@ -5,5 +5,6 @@ namespace ForexRateAlerter.Core.Interfaces
         Task<bool> SendAlertEmailAsync(string toEmail, string baseCurrency, string targetCurrency, 
             decimal currentRate, decimal targetRate, string condition);
         Task<bool> SendWelcomeEmailAsync(string toEmail, string firstName);
+        Task<bool> SendTestEmailAsync(string toEmail);
     }
 }
