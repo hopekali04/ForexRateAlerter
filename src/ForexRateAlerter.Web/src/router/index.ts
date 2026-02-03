@@ -44,6 +44,12 @@ const router = createRouter({
       meta: { requiresAuth: true, roles: ['Admin'] }
     },
     {
+      path: '/admin/alerts',
+      name: 'admin.alerts',
+      component: () => import('../views/AlertsView.vue'),
+      meta: { requiresAuth: true, roles: ['Admin'] }
+    },
+    {
       path: '/about',
       name: 'about',
       // route level code-splitting
