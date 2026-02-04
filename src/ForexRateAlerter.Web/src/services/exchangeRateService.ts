@@ -13,8 +13,20 @@ export interface ExchangeRate {
   source: string;
 }
 
+export interface EnrichedExchangeRate extends ExchangeRate {
+  high24h: number;
+  low24h: number;
+  open24h: number;
+  change24h: number;
+}
+
 export interface LatestRatesResponse {
   rates: ExchangeRate[];
+  timestamp: string;
+}
+
+export interface EnrichedRatesResponse {
+  rates: EnrichedExchangeRate[];
   timestamp: string;
 }
 
@@ -53,6 +65,11 @@ const getAuthHeaders = () => {
 
 export const getLatestRates = async (): Promise<LatestRatesResponse> => {
   const response = await axios.get<LatestRatesResponse>(`${API_URL}/latest`, getAuthHeaders());
+  return response.data;
+};
+
+export const getEnrichedRates = async (): Promise<EnrichedRatesResponse> => {
+  const response = await axios.get<EnrichedRatesResponse>(`${API_URL}/latest-enriched`, getAuthHeaders());
   return response.data;
 };
 

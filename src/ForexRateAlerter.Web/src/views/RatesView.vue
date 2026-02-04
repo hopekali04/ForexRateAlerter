@@ -172,7 +172,6 @@
               <option value="pair">Currency Pair</option>
               <option value="rate">Exchange Rate</option>
               <option value="change">24h Change</option>
-              <option value="volume">Volume</option>
             </select>
           </div>
         </div>
@@ -284,9 +283,6 @@
                 <th class="px-4 py-3 text-right text-xs font-sans font-semibold text-blueprint-text-secondary uppercase tracking-wide">
                   24h Low
                 </th>
-                <th class="px-4 py-3 text-right text-xs font-sans font-semibold text-blueprint-text-secondary uppercase tracking-wide">
-                  Volume
-                </th>
                 <th class="px-4 py-3 text-center text-xs font-sans font-semibold text-blueprint-text-secondary uppercase tracking-wide">
                   Actions
                 </th>
@@ -346,11 +342,6 @@
                 <td class="px-4 py-3 text-right">
                   <span v-if="rate.low24h" class="text-sm font-mono text-blueprint-text">{{ formatRate(rate.low24h) }}</span>
                   <span v-else class="text-sm font-mono text-blueprint-text-secondary">N/A</span>
-                </td>
-                <td class="px-4 py-3 text-right">
-                  <span class="text-sm font-mono text-blueprint-text-secondary">
-                    {{ rate.volume ? formatVolume(rate.volume) : 'N/A' }}
-                  </span>
                 </td>
                 <td class="px-4 py-3">
                   <div class="flex items-center justify-center gap-2">
@@ -534,10 +525,6 @@
                       <p class="text-xs font-sans text-blueprint-text-secondary uppercase tracking-wide mb-1">Open</p>
                       <p class="text-lg font-mono font-bold text-blueprint-text">{{ formatRate(selectedRate.open24h) }}</p>
                     </div>
-                    <div class="bg-blueprint-surface border border-solid border-blueprint-border p-4">
-                      <p class="text-xs font-sans text-blueprint-text-secondary uppercase tracking-wide mb-1">Volume</p>
-                      <p class="text-lg font-mono font-bold text-blueprint-text">{{ formatVolume(selectedRate.volume) }}</p>
-                    </div>
                   </div>
                 </div>
 
@@ -662,7 +649,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
-import { getLatestRates, refreshRates, getRateHistory, getOHLCData, type ExchangeRate } from '@/services/exchangeRateService';
+import { getEnrichedRates, refreshRates, getRateHistory, type ExchangeRate, type EnrichedExchangeRate } from '@/services/exchangeRateService';
 import Toast from '@/components/Toast.vue';
 import { Chart, registerables, type ChartConfiguration } from 'chart.js';
 
@@ -672,14 +659,8 @@ Chart.register(...registerables);
 // Router
 const router = useRouter();
 
-// Enhanced rate interface with OHLC data
-interface EnhancedRate extends ExchangeRate {
-  change24h?: number;
-  high24h?: number;
-  low24h?: number;
-  open24h?: number;
-  volume?: number;
-}
+// Use EnrichedExchangeRate from service
+type EnhancedRate = EnrichedExchangeRate;
 
 // State
 const isLoading = ref(false);
@@ -692,7 +673,7 @@ const lastUpdateTime = ref<string | null>(null);
 const searchQuery = ref('');
 const selectedBaseCurrency = ref('');
 const viewMode = ref<'grid' | 'table'>('table');
-const sortBy = ref<'pair' | 'rate' | 'change' | 'volume'>('pair');
+const sortBy = ref<'pair' | 'rate' | 'change'>('pair');
 
 // Modal State
 const showDetailsModal = ref(false);
@@ -746,8 +727,6 @@ const filteredRates = computed(() => {
         return b.rate - a.rate;
       case 'change':
         return (b.change24h || 0) - (a.change24h || 0);
-      case 'volume':
-        return (b.volume || 0) - (a.volume || 0);
       case 'pair':
       default:
         return `${a.baseCurrency}/${a.targetCurrency}`.localeCompare(`${b.baseCurrency}/${b.targetCurrency}`);
@@ -782,17 +761,6 @@ const formatChangePercent = (value: number | undefined): string => {
   return `${sign}${value.toFixed(2)}%`;
 };
 
-const formatVolume = (value: number | undefined): string => {
-  if (value === undefined || value === null) return 'N/A';
-  if (value >= 1000000) {
-    return `${(value / 1000000).toFixed(2)}M`;
-  }
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(2)}K`;
-  }
-  return value.toString();
-};
-
 const formatTime = (timestamp: string): string => {
   try {
     const date = new Date(timestamp);
@@ -822,49 +790,9 @@ const fetchRates = async () => {
   error.value = null;
   
   try {
-    const response = await getLatestRates();
-    const baseRates = response.rates;
+    const response = await getEnrichedRates();
+    rates.value = response.rates;
     lastUpdateTime.value = response.timestamp;
-    
-    // Enrich rates with OHLC data (fetch in parallel)
-    const enrichedRates = await Promise.all(
-      baseRates.map(async (rate) => {
-        try {
-          // Fetch 24h OHLC data
-          const ohlcResponse = await getOHLCData(rate.baseCurrency, rate.targetCurrency, '1h', 24);
-          
-          if (ohlcResponse.candles && ohlcResponse.candles.length > 0) {
-            const candles = ohlcResponse.candles;
-            const firstCandle = candles[0];
-            const lastCandle = candles[candles.length - 1];
-            
-            // Calculate 24h statistics
-            const high24h = Math.max(...candles.map(c => c.high));
-            const low24h = Math.min(...candles.map(c => c.low));
-            const open24h = firstCandle.open;
-            const close24h = lastCandle.close;
-            const change24h = open24h > 0 ? ((close24h - open24h) / open24h) * 100 : 0;
-            
-            return {
-              ...rate,
-              change24h,
-              high24h,
-              low24h,
-              open24h,
-              volume: undefined, // Volume not available from API yet
-            } as EnhancedRate;
-          }
-          
-          return rate as EnhancedRate;
-        } catch (ohlcErr) {
-          // If OHLC fetch fails, return rate without enrichment
-          console.warn(`Failed to fetch OHLC for ${rate.baseCurrency}/${rate.targetCurrency}:`, ohlcErr);
-          return rate as EnhancedRate;
-        }
-      })
-    );
-    
-    rates.value = enrichedRates;
   } catch (err: any) {
     console.error('Failed to fetch rates:', err);
     error.value = err.response?.data?.message || err.message || 'Failed to load exchange rates. Please try again.';
