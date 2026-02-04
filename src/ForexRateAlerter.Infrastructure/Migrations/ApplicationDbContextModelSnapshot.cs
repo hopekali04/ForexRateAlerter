@@ -148,6 +148,45 @@ namespace ForexRateAlerter.Infrastructure.Migrations
                     b.ToTable("ExchangeRates");
                 });
 
+            modelBuilder.Entity("ForexRateAlerter.Core.Models.ExchangeRateHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BaseCurrency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nchar(3)")
+                        .IsFixedLength();
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("Rate")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TargetCurrency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nchar(3)")
+                        .IsFixedLength();
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BaseCurrency", "TargetCurrency", "CreatedAt");
+
+                    b.ToTable("ExchangeRateHistory");
+                });
+
             modelBuilder.Entity("ForexRateAlerter.Core.Models.User", b =>
                 {
                     b.Property<int>("Id")

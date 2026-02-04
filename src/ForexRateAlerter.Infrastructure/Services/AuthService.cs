@@ -10,6 +10,8 @@ using ForexRateAlerter.Core.Models;
 using ForexRateAlerter.Infrastructure.Data;
 using Microsoft.Extensions.Configuration;
 
+using Microsoft.Extensions.Logging;
+
 namespace ForexRateAlerter.Infrastructure.Services
 {
     public class AuthService : IAuthService
@@ -17,12 +19,14 @@ namespace ForexRateAlerter.Infrastructure.Services
         private readonly ApplicationDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly IEmailService _emailService;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(ApplicationDbContext context, IConfiguration configuration, IEmailService emailService)
+        public AuthService(ApplicationDbContext context, IConfiguration configuration, IEmailService emailService, ILogger<AuthService> logger)
         {
             _context = context;
             _configuration = configuration;
             _emailService = emailService;
+            _logger = logger;
         }
 
         public async Task<(bool Success, string Token, UserResponseDto? User, string Error)> LoginAsync(LoginDto loginDto)
@@ -53,7 +57,8 @@ namespace ForexRateAlerter.Infrastructure.Services
             }
             catch (Exception ex)
             {
-                return (false, string.Empty, null, $"Login failed: {ex.Message}");
+                _logger.LogError(ex, "Login failed for email: {Email}", loginDto.Email);
+                return (false, string.Empty, null, "An unexpected error occurred during login. Please try again later.");
             }
         }
 
@@ -100,7 +105,8 @@ namespace ForexRateAlerter.Infrastructure.Services
             }
             catch (Exception ex)
             {
-                return (false, null, $"Registration failed: {ex.Message}");
+                _logger.LogError(ex, "Registration failed for email: {Email}", registerDto.Email);
+                return (false, null, "An unexpected error occurred during registration. Please try again later.");
             }
         }
 
@@ -165,7 +171,8 @@ namespace ForexRateAlerter.Infrastructure.Services
             }
             catch (Exception ex)
             {
-                return (false, null, $"Admin creation failed: {ex.Message}");
+                _logger.LogError(ex, "Admin creation failed for email: {Email}", registerDto.Email);
+                return (false, null, "An unexpected error occurred while creating the admin account. Please try again later.");
             }
         }
 

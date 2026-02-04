@@ -29,9 +29,11 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IExchangeRateService, ExchangeRateService>();
 builder.Services.AddScoped<IAlertService, AlertService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IExchangeRateHistoryService, ExchangeRateHistoryService>();
 
-// Register background service
+// Register background services
 builder.Services.AddHostedService<AlertBackgroundService>();
+builder.Services.AddHostedService<ExchangeRateCollectorService>();
 
 // Configure JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

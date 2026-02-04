@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using ForexRateAlerter.Core.Interfaces;
 using ForexRateAlerter.Core.DTOs;
 
@@ -11,11 +12,19 @@ namespace ForexRateAlerter.Api.Controllers
     public class ExchangeRateController : ControllerBase
     {
         private readonly IExchangeRateService _exchangeRateService;
+        private readonly IExchangeRateHistoryService _exchangeRateHistoryService;
+        private readonly ILogger<ExchangeRateController> _logger;
         private static readonly HashSet<string> ValidTimeframes = new() { "1m", "5m", "15m", "1h", "1D" };
+        private static readonly HashSet<string> TopMoverTimeframes = new() { "24h", "7d", "30d" };
 
-        public ExchangeRateController(IExchangeRateService exchangeRateService)
+        public ExchangeRateController(
+            IExchangeRateService exchangeRateService,
+            IExchangeRateHistoryService exchangeRateHistoryService,
+            ILogger<ExchangeRateController> logger)
         {
             _exchangeRateService = exchangeRateService;
+            _exchangeRateHistoryService = exchangeRateHistoryService;
+            _logger = logger;
         }
 
         /// <summary>
@@ -25,6 +34,16 @@ namespace ForexRateAlerter.Api.Controllers
         public async Task<IActionResult> GetLatestRates()
         {
             var rates = await _exchangeRateService.GetLatestRatesAsync();
+            return Ok(new { rates, timestamp = DateTime.UtcNow });
+        }
+
+        /// <summary>
+        /// Get latest exchange rates enriched with 24h statistics
+        /// </summary>
+        [HttpGet("latest-enriched")]
+        public async Task<IActionResult> GetEnrichedRates()
+        {
+            var rates = await _exchangeRateService.GetEnrichedRatesAsync();
             return Ok(new { rates, timestamp = DateTime.UtcNow });
         }
 
@@ -50,12 +69,35 @@ namespace ForexRateAlerter.Api.Controllers
         public async Task<IActionResult> GetRateHistory(string baseCurrency, string targetCurrency, 
             [FromQuery] int days = 30)
         {
+            if (days < 1)
+                return BadRequest(new { error = "Days must be between 1 and 365." });
             if (days > 365) days = 365; // Limit to 1 year
 
-            var history = await _exchangeRateService.GetRateHistoryAsync(
-                baseCurrency.ToUpper(), targetCurrency.ToUpper(), days);
+            try
+            {
+                // Use the new history service for accurate historical data
+                var history = await _exchangeRateHistoryService.GetHistoricalRatesAsync(
+                    baseCurrency.ToUpper(), 
+                    targetCurrency.ToUpper(), 
+                    days);
 
-            return Ok(new { history, days });
+                if (!history.Any())
+                {
+                    return Ok(new 
+                    { 
+                        history = Array.Empty<object>(),
+                        message = "No historical data available yet. Data collection in progress.",
+                        days
+                    });
+                }
+
+                return Ok(new { history, days });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve rate history for {Base}/{Target}", baseCurrency, targetCurrency);
+                return StatusCode(500, new { error = "An unexpected error occurred while retrieving rate history." });
+            }
         }
 
         /// <summary>
@@ -87,6 +129,47 @@ namespace ForexRateAlerter.Api.Controllers
             };
 
             return Ok(response);
+        }
+
+        /// <summary>
+        /// Get top currency movers for a specific timeframe
+        /// </summary>
+        /// <param name="timeframe">24h, 7d, or 30d</param>
+        /// <param name="limit">Number of top movers to return (default 5)</param>
+        [HttpGet("top-movers")]
+        public async Task<IActionResult> GetTopMovers([FromQuery] string timeframe = "24h", [FromQuery] int limit = 5)
+        {
+            if (!TopMoverTimeframes.Contains(timeframe.ToLower()))
+            {
+                return BadRequest(new { error = $"Invalid timeframe. Must be one of: {string.Join(", ", TopMoverTimeframes)}" });
+            }
+
+            if (limit < 1 || limit > 20)
+            {
+                return BadRequest(new { error = "Limit must be between 1 and 20" });
+            }
+
+            try
+            {
+                var topMovers = await _exchangeRateHistoryService.GetTopMoversAsync(timeframe, limit);
+                
+                if (!topMovers.Any())
+                {
+                    return Ok(new 
+                    { 
+                        topMovers = Array.Empty<object>(),
+                        timeframe,
+                        message = "No historical data available yet. Data collection started. Check back in 24 hours."
+                    });
+                }
+
+                return Ok(new { topMovers, timeframe });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve top movers for timeframe {Timeframe}", timeframe);
+                 return StatusCode(500, new { error = "An unexpected error occurred while retrieving top movers." });  
+            }
         }
 
         /// <summary>

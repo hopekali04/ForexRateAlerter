@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using ForexRateAlerter.Core.Interfaces;
 using ForexRateAlerter.Core.Models;
+using ForexRateAlerter.Core.DTOs;
 using ForexRateAlerter.Infrastructure.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -39,10 +40,54 @@ namespace ForexRateAlerter.Infrastructure.Services
         {
             var latestRates = await _context.ExchangeRates
                 .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
-                .Select(g => g.OrderByDescending(r => r.Timestamp).First())
+                .Select(g => g.MaxBy(r => r.Timestamp))
                 .ToListAsync();
 
-            return latestRates;
+            return latestRates!;
+        }
+
+        public async Task<IEnumerable<EnrichedExchangeRateDto>> GetEnrichedRatesAsync()
+        {
+            var latestRates = await GetLatestRatesAsync();
+            var fromDate = DateTime.UtcNow.AddHours(-24);
+
+            // Fetch 24h stats using grouping
+            var stats = await _context.ExchangeRates
+                .Where(r => r.Timestamp >= fromDate)
+                .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
+                .Select(g => new
+                {
+                    g.Key.BaseCurrency,
+                    g.Key.TargetCurrency,
+                    High = g.Max(r => r.Rate),
+                    Low = g.Min(r => r.Rate),
+                    // We need the first rate in the 24h window for the "Open" price
+                    Open = g.MinBy(r => r.Timestamp)!.Rate
+                })
+                .ToListAsync();
+
+            return latestRates.Select(rate =>
+            {
+                var s = stats.FirstOrDefault(x => x.BaseCurrency == rate.BaseCurrency && x.TargetCurrency == rate.TargetCurrency);
+                return new EnrichedExchangeRateDto
+                {
+                    BaseCurrency = rate.BaseCurrency,
+                    TargetCurrency = rate.TargetCurrency,
+                    Rate = rate.Rate,
+                    Timestamp = rate.Timestamp,
+                    Source = rate.Source,
+                    High24h = s?.High ?? rate.Rate,
+                    Low24h = s?.Low ?? rate.Rate,
+                    Open24h = s?.Open ?? rate.Rate,
+                    Change24h = (s != null && s.Open != 0) ? ((rate.Rate - s.Open) / s.Open) * 100 : 0
+                };
+            });
+        }
+
+        public async Task<IEnumerable<ExchangeRate>> GetAllRatesAsync()
+        {
+            // Returns all latest rates for historical collection
+            return await GetLatestRatesAsync();
         }
 
         public async Task<bool> FetchAndStoreLatestRatesAsync()
@@ -227,6 +272,18 @@ namespace ForexRateAlerter.Infrastructure.Services
                     r.Timestamp.Year, r.Timestamp.Month, r.Timestamp.Day)),
                 _ => rates.GroupBy(r => r.Timestamp.Date)
             };
+        }
+
+        [System.Obsolete("This method is deprecated - use IExchangeRateHistoryService.GetTopMoversAsync instead")]
+        public Task<TopMoversResponse> GetTopMoversAsync(string timeframe = "24h")
+        {
+            // This method is deprecated - use IExchangeRateHistoryService instead
+            return Task.FromResult(new TopMoversResponse
+            {
+                TopMovers = Enumerable.Empty<TopMoverDto>(),
+                Timeframe = timeframe,
+                GeneratedAt = DateTime.UtcNow
+            });
         }
 
         private class ExchangeRateApiResponse
