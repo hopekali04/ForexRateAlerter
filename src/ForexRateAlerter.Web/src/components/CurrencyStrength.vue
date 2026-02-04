@@ -1,9 +1,25 @@
 <template>
   <div class="bg-blueprint-surface border border-blueprint-border">
-    <!-- Header -->
+    <!-- Header with Timeframe Selector -->
     <div class="border-b border-blueprint-border px-6 py-4">
-      <h3 class="font-sans text-sm font-bold text-blueprint-text uppercase tracking-wide">Market Pulse – Top Movers</h3>
-      <p class="font-sans text-xs text-blueprint-text-secondary mt-1">Click any currency pair to set an alert</p>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h3 class="font-sans text-sm font-bold text-blueprint-text uppercase tracking-wide">Market Pulse – Top Movers</h3>
+          <p class="font-sans text-xs text-blueprint-text-secondary mt-1">Click any currency pair to set an alert</p>
+        </div>
+        
+        <!-- Timeframe Dropdown -->
+        <select 
+          v-model="selectedTimeframe"
+          @change="fetchTopMovers"
+          class="border border-blueprint-border bg-white px-3 py-2 font-mono text-xs font-semibold text-blueprint-text focus:outline-none focus:border-blueprint-primary hover:bg-blueprint-bg transition-colors"
+          :disabled="isLoading"
+        >
+          <option value="24h">24 HOURS</option>
+          <option value="7d">7 DAYS</option>
+          <option value="30d">30 DAYS</option>
+        </select>
+      </div>
     </div>
 
     <!-- Currency Strength Bars -->
@@ -15,7 +31,9 @@
       
       <!-- Empty State -->
       <div v-else-if="topMovers.length === 0" class="text-center py-8">
-        <span class="font-sans text-xs text-blueprint-text-secondary">No market data available</span>
+        <span class="font-sans text-xs text-blueprint-text-secondary">
+          {{ emptyMessage || 'No market data available' }}
+        </span>
       </div>
       
       <!-- Currency Bars -->
@@ -82,14 +100,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { getLatestRates, type ExchangeRate } from '@/services/exchangeRateService';
+import { ref, computed, onMounted } from 'vue';
+import axios from 'axios';
 
 interface CurrencyMover {
   pair: string;
   rate: string;
   change: number;
-  volume: number;
+  volume?: number;
+}
+
+interface TopMoverResponse {
+  pair: string;
+  latestRate: number;
+  oldestRate: number;
+  changePercent: number;
+  direction: string;
 }
 
 defineEmits<{
@@ -98,7 +124,8 @@ defineEmits<{
 
 const topMovers = ref<CurrencyMover[]>([]);
 const isLoading = ref(true);
-const previousRates = new Map<string, number>();
+const selectedTimeframe = ref('24h');
+const emptyMessage = ref('');
 
 const volatilityIndex = computed(() => {
   if (topMovers.value.length === 0) return 0;
@@ -106,62 +133,37 @@ const volatilityIndex = computed(() => {
   return avgChange * 25; // Scale to 0-100
 });
 
-let updateInterval: number | null = null;
-
 const fetchTopMovers = async () => {
   try {
-    const response = await getLatestRates();
+    isLoading.value = true;
+    emptyMessage.value = '';
     
-    if (response?.rates && Array.isArray(response.rates)) {
-      // Transform and calculate changes
-      const moversWithChanges = response.rates.map((rate: ExchangeRate) => {
-        const pair = `${rate.baseCurrency}/${rate.targetCurrency}`;
-        const currentRate = rate.rate; // Already a number from API
-        const previousRate = previousRates.get(pair) || currentRate;
-        
-        // Calculate percentage change
-        const change = previousRate !== 0 
-          ? ((currentRate - previousRate) / previousRate) * 100 
-          : 0;
-        
-        // Store current rate for next comparison
-        previousRates.set(pair, currentRate);
-        
-        return {
-          pair,
-          rate: currentRate.toFixed(4),
-          change: parseFloat(change.toFixed(2)),
-          volume: Math.floor(Math.random() * 100000) + 50000 // Simulated volume
-        };
-      });
-      
-      // Sort by absolute change and take top 5
-      topMovers.value = moversWithChanges
-        .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
-        .slice(0, 5);
+    const response = await axios.get(`/api/exchange-rate/top-movers?timeframe=${selectedTimeframe.value}&limit=5`);
+    
+    if (response.data.message) {
+      // No historical data available yet
+      emptyMessage.value = response.data.message;
+      topMovers.value = [];
+    } else if (response.data.topMovers && Array.isArray(response.data.topMovers)) {
+      // Transform API response to component format
+      topMovers.value = response.data.topMovers.map((mover: TopMoverResponse) => ({
+        pair: mover.pair,
+        rate: mover.latestRate.toFixed(4),
+        change: parseFloat(mover.changePercent.toFixed(2)),
+        volume: Math.floor(Math.random() * 100000) + 50000 // Simulated volume for UI
+      }));
     }
     
     isLoading.value = false;
   } catch (error) {
     console.error('Failed to fetch top movers:', error);
     isLoading.value = false;
-    // Graceful degradation - keep existing data
-    if (topMovers.value.length === 0) {
-      // Fallback to empty array
-      topMovers.value = [];
-    }
+    emptyMessage.value = 'Failed to load market data. Please try again.';
+    topMovers.value = [];
   }
 };
 
-onMounted(async () => {
-  await fetchTopMovers();
-  // Refresh every 30 seconds
-  updateInterval = window.setInterval(fetchTopMovers, 30000);
-});
-
-onUnmounted(() => {
-  if (updateInterval) {
-    clearInterval(updateInterval);
-  }
+onMounted(() => {
+  fetchTopMovers();
 });
 </script>
