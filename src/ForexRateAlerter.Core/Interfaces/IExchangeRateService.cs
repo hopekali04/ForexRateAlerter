@@ -7,6 +7,7 @@ namespace ForexRateAlerter.Core.Interfaces
     {
         Task<ExchangeRate?> GetLatestRateAsync(string baseCurrency, string targetCurrency);
         Task<IEnumerable<ExchangeRate>> GetLatestRatesAsync();
+        Task<IEnumerable<EnrichedExchangeRateDto>> GetEnrichedRatesAsync();
         Task<IEnumerable<ExchangeRate>> GetAllRatesAsync(); // For historical collection
         Task<bool> FetchAndStoreLatestRatesAsync();
         Task<IEnumerable<ExchangeRate>> GetRateHistoryAsync(string baseCurrency, string targetCurrency, int days = 30);

@@ -37,6 +37,16 @@ namespace ForexRateAlerter.Api.Controllers
         }
 
         /// <summary>
+        /// Get latest exchange rates enriched with 24h statistics
+        /// </summary>
+        [HttpGet("latest-enriched")]
+        public async Task<IActionResult> GetEnrichedRates()
+        {
+            var rates = await _exchangeRateService.GetEnrichedRatesAsync();
+            return Ok(new { rates, timestamp = DateTime.UtcNow });
+        }
+
+        /// <summary>
         /// Get latest rate for a specific currency pair
         /// </summary>
         [HttpGet("latest/{baseCurrency}/{targetCurrency}")]

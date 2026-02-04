@@ -46,6 +46,44 @@ namespace ForexRateAlerter.Infrastructure.Services
             return latestRates;
         }
 
+        public async Task<IEnumerable<EnrichedExchangeRateDto>> GetEnrichedRatesAsync()
+        {
+            var latestRates = await GetLatestRatesAsync();
+            var fromDate = DateTime.UtcNow.AddHours(-24);
+
+            // Fetch 24h stats using grouping
+            var stats = await _context.ExchangeRates
+                .Where(r => r.Timestamp >= fromDate)
+                .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
+                .Select(g => new
+                {
+                    g.Key.BaseCurrency,
+                    g.Key.TargetCurrency,
+                    High = g.Max(r => r.Rate),
+                    Low = g.Min(r => r.Rate),
+                    // We need the first rate in the 24h window for the "Open" price
+                    Open = g.OrderBy(r => r.Timestamp).First().Rate
+                })
+                .ToListAsync();
+
+            return latestRates.Select(rate =>
+            {
+                var s = stats.FirstOrDefault(x => x.BaseCurrency == rate.BaseCurrency && x.TargetCurrency == rate.TargetCurrency);
+                return new EnrichedExchangeRateDto
+                {
+                    BaseCurrency = rate.BaseCurrency,
+                    TargetCurrency = rate.TargetCurrency,
+                    Rate = rate.Rate,
+                    Timestamp = rate.Timestamp,
+                    Source = rate.Source,
+                    High24h = s?.High ?? rate.Rate,
+                    Low24h = s?.Low ?? rate.Rate,
+                    Open24h = s?.Open ?? rate.Rate,
+                    Change24h = (s != null && s.Open != 0) ? ((rate.Rate - s.Open) / s.Open) * 100 : 0
+                };
+            });
+        }
+
         public async Task<IEnumerable<ExchangeRate>> GetAllRatesAsync()
         {
             // Returns all latest rates for historical collection
