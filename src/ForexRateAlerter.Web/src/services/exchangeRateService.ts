@@ -54,6 +54,20 @@ export interface OHLCResponse {
   timestamp: string;
 }
 
+export interface TopMover {
+  pair: string;
+  latestRate: number;
+  oldestRate: number;
+  changePercent: number;
+  direction: string;
+}
+
+export interface TopMoversResponse {
+  topMovers: TopMover[];
+  timeframe: string;
+  message?: string;
+}
+
 const getAuthHeaders = () => {
   const authStore = useAuthStore();
   return {
@@ -96,6 +110,14 @@ export const getOHLCData = async (
 ): Promise<OHLCResponse> => {
   const response = await axios.get<OHLCResponse>(
     `${API_URL}/ohlc/${baseCurrency}/${targetCurrency}?timeframe=${timeframe}&limit=${limit}`, 
+    getAuthHeaders()
+  );
+  return response.data;
+};
+
+export const getTopMovers = async (timeframe: string = '24h', limit: number = 5): Promise<TopMoversResponse> => {
+  const response = await axios.get<TopMoversResponse>(
+    `${API_URL}/top-movers?timeframe=${timeframe}&limit=${limit}`, 
     getAuthHeaders()
   );
   return response.data;
