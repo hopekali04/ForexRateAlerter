@@ -84,8 +84,8 @@ public class ExchangeRateHistoryService : IExchangeRateHistoryService
                 .Select(g => new
                 {
                     Pair = $"{g.Key.BaseCurrency}/{g.Key.TargetCurrency}",
-                    LatestRate = g.OrderByDescending(r => r.CreatedAt).First().Rate,
-                    OldestRate = g.OrderBy(r => r.CreatedAt).First().Rate,
+                    LatestRate = g.MaxBy(r => r.CreatedAt)!.Rate,
+                    OldestRate = g.MinBy(r => r.CreatedAt)!.Rate,
                     DataPoints = g.Count()
                 })
                 .Where(x => x.DataPoints >= 2) // Need at least 2 data points to calculate change

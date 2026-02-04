@@ -40,10 +40,10 @@ namespace ForexRateAlerter.Infrastructure.Services
         {
             var latestRates = await _context.ExchangeRates
                 .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
-                .Select(g => g.OrderByDescending(r => r.Timestamp).First())
+                .Select(g => g.MaxBy(r => r.Timestamp))
                 .ToListAsync();
 
-            return latestRates;
+            return latestRates!;
         }
 
         public async Task<IEnumerable<EnrichedExchangeRateDto>> GetEnrichedRatesAsync()
@@ -62,7 +62,7 @@ namespace ForexRateAlerter.Infrastructure.Services
                     High = g.Max(r => r.Rate),
                     Low = g.Min(r => r.Rate),
                     // We need the first rate in the 24h window for the "Open" price
-                    Open = g.OrderBy(r => r.Timestamp).First().Rate
+                    Open = g.MinBy(r => r.Timestamp).Rate
                 })
                 .ToListAsync();
 
