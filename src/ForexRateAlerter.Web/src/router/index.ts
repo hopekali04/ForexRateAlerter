@@ -5,11 +5,6 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
-      path: '/',
-      name: 'home',
-      component: () => import('../views/HomeView.vue')
-    },
-    {
       path: '/login',
       name: 'login',
       component: () => import('../views/LoginView.vue')
@@ -80,7 +75,17 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const authStore = useAuthStore()
   
-  // Only redirect authenticated users away from login/register IF coming from home
+  // Redirect home to dashboard if authenticated, or to login if not
+  if (to.path === '/') {
+    if (authStore.token) {
+      next('/dashboard')
+    } else {
+      next('/login')
+    }
+    return
+  }
+  
+  // Only redirect authenticated users away from login/register
   if ((to.name === 'login' || to.name === 'register') && authStore.token) {
     next('/dashboard')
     return
