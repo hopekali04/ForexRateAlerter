@@ -1,4 +1,5 @@
 using ForexRateAlerter.Core.Interfaces;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -12,14 +13,18 @@ public class ExchangeRateCollectorService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<ExchangeRateCollectorService> _logger;
-    private readonly TimeSpan _collectionInterval = TimeSpan.FromHours(1); // Configurable
+    private readonly TimeSpan _collectionInterval;
 
     public ExchangeRateCollectorService(
         IServiceProvider serviceProvider,
-        ILogger<ExchangeRateCollectorService> logger)
+        ILogger<ExchangeRateCollectorService> logger,
+        IConfiguration configuration)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
+        
+        var intervalMinutes = configuration.GetValue<int>("ExchangeRateHistory:IntervalMinutes", 60);
+        _collectionInterval = TimeSpan.FromMinutes(intervalMinutes);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

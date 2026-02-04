@@ -13,7 +13,7 @@ namespace ForexRateAlerter.Core.Models
         
         public decimal Rate { get; set; }
         
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; }
         
         public string Source { get; set; } = string.Empty; // API source name
     }

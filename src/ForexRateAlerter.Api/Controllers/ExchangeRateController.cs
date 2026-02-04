@@ -15,6 +15,7 @@ namespace ForexRateAlerter.Api.Controllers
         private readonly IExchangeRateHistoryService _exchangeRateHistoryService;
         private readonly ILogger<ExchangeRateController> _logger;
         private static readonly HashSet<string> ValidTimeframes = new() { "1m", "5m", "15m", "1h", "1D" };
+        private static readonly HashSet<string> TopMoverTimeframes = new() { "24h", "7d", "30d" };
 
         public ExchangeRateController(
             IExchangeRateService exchangeRateService,
@@ -136,11 +137,9 @@ namespace ForexRateAlerter.Api.Controllers
         [HttpGet("top-movers")]
         public async Task<IActionResult> GetTopMovers([FromQuery] string timeframe = "24h", [FromQuery] int limit = 5)
         {
-            var validTimeframes = new[] { "24h", "7d", "30d" };
-            
-            if (!validTimeframes.Contains(timeframe.ToLower()))
+            if (!TopMoverTimeframes.Contains(timeframe.ToLower()))
             {
-                return BadRequest(new { error = $"Invalid timeframe. Must be one of: {string.Join(", ", validTimeframes)}" });
+                return BadRequest(new { error = $"Invalid timeframe. Must be one of: {string.Join(", ", TopMoverTimeframes)}" });
             }
 
             if (limit < 1 || limit > 20)
@@ -167,7 +166,7 @@ namespace ForexRateAlerter.Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to retrieve top movers for timeframe {Timeframe}", timeframe);
-                return StatusCode(500, new { error = "An unexpected error occurred while retrieving top movers." });
+                 return StatusCode(500, new { error = "An unexpected error occurred while retrieving top movers." });  
             }
         }
 
