@@ -144,6 +144,7 @@ const userNavigation = [
 
 const adminNavigation = [
   { name: 'Dashboard', href: '/admin' },
+  { name: 'Forex Dashboard', href: '/dashboard' },
   { name: 'Users', href: '/admin/users' },
   { name: 'Alerts', href: '/admin/alerts' },
   { name: 'Rates', href: '/admin/rates' },
