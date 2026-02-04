@@ -11,11 +11,15 @@ namespace ForexRateAlerter.Api.Controllers
     public class ExchangeRateController : ControllerBase
     {
         private readonly IExchangeRateService _exchangeRateService;
+        private readonly IExchangeRateHistoryService _exchangeRateHistoryService;
         private static readonly HashSet<string> ValidTimeframes = new() { "1m", "5m", "15m", "1h", "1D" };
 
-        public ExchangeRateController(IExchangeRateService exchangeRateService)
+        public ExchangeRateController(
+            IExchangeRateService exchangeRateService,
+            IExchangeRateHistoryService exchangeRateHistoryService)
         {
             _exchangeRateService = exchangeRateService;
+            _exchangeRateHistoryService = exchangeRateHistoryService;
         }
 
         /// <summary>
@@ -87,6 +91,48 @@ namespace ForexRateAlerter.Api.Controllers
             };
 
             return Ok(response);
+        }
+
+        /// <summary>
+        /// Get top currency movers for a specific timeframe
+        /// </summary>
+        /// <param name="timeframe">24h, 7d, or 30d</param>
+        /// <param name="limit">Number of top movers to return (default 5)</param>
+        [HttpGet("top-movers")]
+        public async Task<IActionResult> GetTopMovers([FromQuery] string timeframe = "24h", [FromQuery] int limit = 5)
+        {
+            var validTimeframes = new[] { "24h", "7d", "30d" };
+            
+            if (!validTimeframes.Contains(timeframe.ToLower()))
+            {
+                return BadRequest(new { error = $"Invalid timeframe. Must be one of: {string.Join(", ", validTimeframes)}" });
+            }
+
+            if (limit < 1 || limit > 20)
+            {
+                return BadRequest(new { error = "Limit must be between 1 and 20" });
+            }
+
+            try
+            {
+                var topMovers = await _exchangeRateHistoryService.GetTopMoversAsync(timeframe, limit);
+                
+                if (!topMovers.Any())
+                {
+                    return Ok(new 
+                    { 
+                        topMovers = Array.Empty<object>(),
+                        timeframe,
+                        message = "No historical data available yet. Data collection started. Check back in 24 hours."
+                    });
+                }
+
+                return Ok(new { topMovers, timeframe });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Failed to retrieve top movers", details = ex.Message });
+            }
         }
 
         /// <summary>
