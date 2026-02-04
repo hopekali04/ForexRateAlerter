@@ -93,7 +93,7 @@ namespace ForexRateAlerter.Api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to retrieve rate history for {Base}/{Target}", baseCurrency, targetCurrency);
-                return StatusCode(500, new { error = "Failed to retrieve rate history", details = ex.Message });
+                return StatusCode(500, new { error = "An unexpected error occurred while retrieving rate history." });
             }
         }
 
@@ -166,7 +166,8 @@ namespace ForexRateAlerter.Api.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { error = "Failed to retrieve top movers", details = ex.Message });
+                _logger.LogError(ex, "Failed to retrieve top movers for timeframe {Timeframe}", timeframe);
+                return StatusCode(500, new { error = "An unexpected error occurred while retrieving top movers." });
             }
         }
 
