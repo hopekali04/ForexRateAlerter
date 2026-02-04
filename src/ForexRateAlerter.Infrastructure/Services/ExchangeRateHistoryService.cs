@@ -122,4 +122,33 @@ public class ExchangeRateHistoryService : IExchangeRateHistoryService
             throw;
         }
     }
+
+    public async Task<IEnumerable<ExchangeRateDto>> GetHistoricalRatesAsync(string baseCurrency, string targetCurrency, int days = 30)
+    {
+        try
+        {
+            var fromDate = DateTime.UtcNow.AddDays(-days);
+
+            var history = await _context.ExchangeRateHistory
+                .Where(r => r.BaseCurrency == baseCurrency && 
+                           r.TargetCurrency == targetCurrency && 
+                           r.CreatedAt >= fromDate)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            return history.Select(h => new ExchangeRateDto
+            {
+                BaseCurrency = h.BaseCurrency,
+                TargetCurrency = h.TargetCurrency,
+                Rate = h.Rate,
+                Timestamp = h.CreatedAt,
+                Source = h.Source
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get historical rates for {BaseCurrency}/{TargetCurrency}", baseCurrency, targetCurrency);
+            throw;
+        }
+    }
 }

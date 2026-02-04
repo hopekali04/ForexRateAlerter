@@ -101,21 +101,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import axios from 'axios';
+import { getTopMovers, type TopMover } from '@/services/exchangeRateService';
 
 interface CurrencyMover {
   pair: string;
   rate: string;
   change: number;
   volume?: number;
-}
-
-interface TopMoverResponse {
-  pair: string;
-  latestRate: number;
-  oldestRate: number;
-  changePercent: number;
-  direction: string;
 }
 
 defineEmits<{
@@ -138,15 +130,15 @@ const fetchTopMovers = async () => {
     isLoading.value = true;
     emptyMessage.value = '';
     
-    const response = await axios.get(`/api/exchange-rate/top-movers?timeframe=${selectedTimeframe.value}&limit=5`);
+    const response = await getTopMovers(selectedTimeframe.value, 5);
     
-    if (response.data.message) {
+    if (response.message) {
       // No historical data available yet
-      emptyMessage.value = response.data.message;
+      emptyMessage.value = response.message;
       topMovers.value = [];
-    } else if (response.data.topMovers && Array.isArray(response.data.topMovers)) {
+    } else if (response.topMovers && Array.isArray(response.topMovers)) {
       // Transform API response to component format
-      topMovers.value = response.data.topMovers.map((mover: TopMoverResponse) => ({
+      topMovers.value = response.topMovers.map((mover: TopMover) => ({
         pair: mover.pair,
         rate: mover.latestRate.toFixed(4),
         change: parseFloat(mover.changePercent.toFixed(2)),

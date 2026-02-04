@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using ForexRateAlerter.Core.Interfaces;
 using ForexRateAlerter.Core.DTOs;
 
@@ -12,14 +13,17 @@ namespace ForexRateAlerter.Api.Controllers
     {
         private readonly IExchangeRateService _exchangeRateService;
         private readonly IExchangeRateHistoryService _exchangeRateHistoryService;
+        private readonly ILogger<ExchangeRateController> _logger;
         private static readonly HashSet<string> ValidTimeframes = new() { "1m", "5m", "15m", "1h", "1D" };
 
         public ExchangeRateController(
             IExchangeRateService exchangeRateService,
-            IExchangeRateHistoryService exchangeRateHistoryService)
+            IExchangeRateHistoryService exchangeRateHistoryService,
+            ILogger<ExchangeRateController> logger)
         {
             _exchangeRateService = exchangeRateService;
             _exchangeRateHistoryService = exchangeRateHistoryService;
+            _logger = logger;
         }
 
         /// <summary>
@@ -29,6 +33,16 @@ namespace ForexRateAlerter.Api.Controllers
         public async Task<IActionResult> GetLatestRates()
         {
             var rates = await _exchangeRateService.GetLatestRatesAsync();
+            return Ok(new { rates, timestamp = DateTime.UtcNow });
+        }
+
+        /// <summary>
+        /// Get latest exchange rates enriched with 24h statistics
+        /// </summary>
+        [HttpGet("latest-enriched")]
+        public async Task<IActionResult> GetEnrichedRates()
+        {
+            var rates = await _exchangeRateService.GetEnrichedRatesAsync();
             return Ok(new { rates, timestamp = DateTime.UtcNow });
         }
 
@@ -56,10 +70,31 @@ namespace ForexRateAlerter.Api.Controllers
         {
             if (days > 365) days = 365; // Limit to 1 year
 
-            var history = await _exchangeRateService.GetRateHistoryAsync(
-                baseCurrency.ToUpper(), targetCurrency.ToUpper(), days);
+            try
+            {
+                // Use the new history service for accurate historical data
+                var history = await _exchangeRateHistoryService.GetHistoricalRatesAsync(
+                    baseCurrency.ToUpper(), 
+                    targetCurrency.ToUpper(), 
+                    days);
 
-            return Ok(new { history, days });
+                if (!history.Any())
+                {
+                    return Ok(new 
+                    { 
+                        history = Array.Empty<object>(),
+                        message = "No historical data available yet. Data collection in progress.",
+                        days
+                    });
+                }
+
+                return Ok(new { history, days });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve rate history for {Base}/{Target}", baseCurrency, targetCurrency);
+                return StatusCode(500, new { error = "An unexpected error occurred while retrieving rate history." });
+            }
         }
 
         /// <summary>
@@ -131,7 +166,8 @@ namespace ForexRateAlerter.Api.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { error = "Failed to retrieve top movers", details = ex.Message });
+                _logger.LogError(ex, "Failed to retrieve top movers for timeframe {Timeframe}", timeframe);
+                return StatusCode(500, new { error = "An unexpected error occurred while retrieving top movers." });
             }
         }
 
