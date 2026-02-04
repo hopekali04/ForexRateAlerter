@@ -12,6 +12,7 @@ namespace ForexRateAlerter.Infrastructure.Data
         public DbSet<User> Users { get; set; }
         public DbSet<Alert> Alerts { get; set; }
         public DbSet<ExchangeRate> ExchangeRates { get; set; }
+        public DbSet<ExchangeRateHistory> ExchangeRateHistory { get; set; }
         public DbSet<AlertLog> AlertLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -54,6 +55,19 @@ namespace ForexRateAlerter.Infrastructure.Data
                 entity.Property(e => e.Source).HasMaxLength(50);
                 
                 entity.HasIndex(e => new { e.BaseCurrency, e.TargetCurrency, e.Timestamp });
+            });
+
+            // ExchangeRateHistory configuration
+            modelBuilder.Entity<ExchangeRateHistory>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.BaseCurrency).HasMaxLength(3).IsFixedLength();
+                entity.Property(e => e.TargetCurrency).HasMaxLength(3).IsFixedLength();
+                entity.Property(e => e.Rate).HasPrecision(18, 6);
+                entity.Property(e => e.Source).HasMaxLength(50);
+                
+                // Index for fast time-based queries
+                entity.HasIndex(e => new { e.BaseCurrency, e.TargetCurrency, e.CreatedAt });
             });
 
             // AlertLog configuration
