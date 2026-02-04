@@ -367,7 +367,7 @@
                 </td>
               </tr>
               <tr v-if="filteredRates.length === 0">
-                <td colspan="7" class="px-4 py-8 text-center">
+                <td colspan="6" class="px-4 py-8 text-center">
                   <p class="text-sm font-mono text-blueprint-text-secondary">No exchange rates match your search criteria</p>
                 </td>
               </tr>
