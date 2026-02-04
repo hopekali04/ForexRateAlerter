@@ -147,7 +147,7 @@ public class ExchangeRateHistoryService : IExchangeRateHistoryService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Failed to get historical rates for {baseCurrency}/{targetCurrency}");
+            _logger.LogError(ex, "Failed to get historical rates for {BaseCurrency}/{TargetCurrency}", baseCurrency, targetCurrency);
             throw;
         }
     }
