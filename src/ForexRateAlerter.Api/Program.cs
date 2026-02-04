@@ -33,7 +33,6 @@ builder.Services.AddScoped<IExchangeRateHistoryService, ExchangeRateHistoryServi
 
 // Register background services
 builder.Services.AddHostedService<AlertBackgroundService>();
-builder.Services.AddHostedService<ExchangeRateCollectorService>();
 
 // Configure JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

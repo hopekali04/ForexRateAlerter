@@ -78,28 +78,78 @@ public class ExchangeRateHistoryService : IExchangeRateHistoryService
 
             _logger.LogInformation($"Fetching top {limit} movers for timeframe: {timeframe} (since {lookbackTime:yyyy-MM-dd HH:mm:ss} UTC)");
 
-            // Query historical data
-            var ratesInPeriod = await _context.ExchangeRateHistory
+            // Query historical data - materialize first to avoid SQL translation issues
+            var allHistoricalRates = await _context.ExchangeRateHistory
                 .Where(r => r.CreatedAt >= lookbackTime)
-                .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
-                .Select(g => new
-                {
-                    Pair = $"{g.Key.BaseCurrency}/{g.Key.TargetCurrency}",
-                    LatestRate = g.OrderByDescending(r => r.CreatedAt).FirstOrDefault()!.Rate,
-                    OldestRate = g.OrderBy(r => r.CreatedAt).FirstOrDefault()!.Rate,
-                    DataPoints = g.Count()
-                })
-                .Where(x => x.DataPoints >= 2) // Need at least 2 data points to calculate change
                 .ToListAsync();
 
-            if (!ratesInPeriod.Any())
+            List<TopMoverDto> topMovers;
+
+            if (allHistoricalRates.Any())
             {
-                _logger.LogWarning($"No historical data available for timeframe: {timeframe}");
+                var ratesInPeriod = allHistoricalRates
+                    .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
+                    .Where(g => g.Count() >= 2) // Need at least 2 data points to calculate change
+                    .Select(g => new
+                    {
+                        Pair = $"{g.Key.BaseCurrency}/{g.Key.TargetCurrency}",
+                        LatestRate = g.OrderByDescending(r => r.CreatedAt).First().Rate,
+                        OldestRate = g.OrderBy(r => r.CreatedAt).First().Rate,
+                        DataPoints = g.Count()
+                    })
+                    .ToList();
+
+                // Calculate percentage changes
+                topMovers = ratesInPeriod
+                    .Select(r => new TopMoverDto
+                    {
+                        Pair = r.Pair,
+                        LatestRate = r.LatestRate,
+                        OldestRate = r.OldestRate,
+                        ChangePercent = r.OldestRate != 0
+                            ? ((r.LatestRate - r.OldestRate) / r.OldestRate) * 100
+                            : 0,
+                        Direction = r.LatestRate > r.OldestRate ? "up" : r.LatestRate < r.OldestRate ? "down" : "unchanged"
+                    })
+                    .Where(m => m.ChangePercent != 0) // Filter out pairs with 0% change
+                    .OrderByDescending(m => Math.Abs(m.ChangePercent))
+                    .Take(limit)
+                    .ToList();
+
+                // If we have movers, return them
+                if (topMovers.Any())
+                {
+                    _logger.LogInformation($"Found {topMovers.Count} top movers from ExchangeRateHistory");
+                    return topMovers;
+                }
+                
+                _logger.LogWarning("ExchangeRateHistory has data but all pairs have 0% change. Falling back to ExchangeRates table.");
+            }
+
+            // Fallback: Use ExchangeRates table (more frequent updates)
+            _logger.LogInformation("Using ExchangeRates table as fallback for top movers");
+            var allRates = await _context.ExchangeRates
+                .Where(r => r.Timestamp >= lookbackTime)
+                .ToListAsync();
+
+            if (!allRates.Any())
+            {
+                _logger.LogWarning("No data in ExchangeRates table either");
                 return Enumerable.Empty<TopMoverDto>();
             }
 
-            // Calculate percentage changes
-            var topMovers = ratesInPeriod
+            var fallbackRates = allRates
+                .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
+                .Where(g => g.Count() >= 2)
+                .Select(g => new
+                {
+                    Pair = $"{g.Key.BaseCurrency}/{g.Key.TargetCurrency}",
+                    LatestRate = g.OrderByDescending(r => r.Timestamp).First().Rate,
+                    OldestRate = g.OrderBy(r => r.Timestamp).First().Rate
+                })
+                .ToList();
+
+            topMovers = fallbackRates
                 .Select(r => new TopMoverDto
                 {
                     Pair = r.Pair,
@@ -110,11 +160,12 @@ public class ExchangeRateHistoryService : IExchangeRateHistoryService
                         : 0,
                     Direction = r.LatestRate > r.OldestRate ? "up" : r.LatestRate < r.OldestRate ? "down" : "unchanged"
                 })
+                .Where(m => m.ChangePercent != 0)
                 .OrderByDescending(m => Math.Abs(m.ChangePercent))
                 .Take(limit)
                 .ToList();
 
-            _logger.LogInformation($"Found {topMovers.Count} top movers for {timeframe}");
+            _logger.LogInformation($"Found {topMovers.Count} top movers from ExchangeRates table (fallback)");
             return topMovers;
         }
         catch (Exception ex)

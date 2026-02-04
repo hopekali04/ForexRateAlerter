@@ -38,13 +38,15 @@ namespace ForexRateAlerter.Infrastructure.Services
 
         public async Task<IEnumerable<ExchangeRate>> GetLatestRatesAsync()
         {
-            var latestRates = await _context.ExchangeRates
+            // Load all rates into memory first, then group (exchange rates dataset is manageable)
+            var allRates = await _context.ExchangeRates.ToListAsync();
+            
+            var latestRates = allRates
                 .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
-                .Select(g => g.OrderByDescending(r => r.Timestamp).FirstOrDefault())
-                .Where(r => r != null)
-                .ToListAsync();
+                .Select(g => g.OrderByDescending(r => r.Timestamp).First())
+                .ToList();
 
-            return latestRates!;
+            return latestRates;
         }
 
         public async Task<IEnumerable<EnrichedExchangeRateDto>> GetEnrichedRatesAsync()
@@ -59,6 +61,7 @@ namespace ForexRateAlerter.Infrastructure.Services
 
             var stats = allRatesInWindow
                 .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
+                .Where(g => g.Any()) // Ensure group is not empty
                 .Select(g => new
                 {
                     g.Key.BaseCurrency,
@@ -66,8 +69,9 @@ namespace ForexRateAlerter.Infrastructure.Services
                     High = g.Max(r => r.Rate),
                     Low = g.Min(r => r.Rate),
                     // Get the first rate in the 24h window for the "Open" price
-                    Open = g.OrderBy(r => r.Timestamp).First().Rate
+                    Open = g.OrderBy(r => r.Timestamp).FirstOrDefault()?.Rate ?? 0
                 })
+                .Where(s => s.Open != 0) // Filter out invalid data
                 .ToList();
 
             return latestRates.Select(rate =>
@@ -101,6 +105,13 @@ namespace ForexRateAlerter.Infrastructure.Services
                 var apiKey = _configuration["ExchangeRateApi:ApiKey"]?.Trim();
                 var baseUrl = _configuration["ExchangeRateApi:BaseUrl"]?.Trim();
 
+                // 1. Get existing latest rates to compare against (Change Detection)
+                var existingRates = (await GetLatestRatesAsync())
+                    .ToDictionary(r => $"{r.BaseCurrency}-{r.TargetCurrency}", r => r.Rate);
+                
+                bool anyChanges = false;
+                var timestamp = DateTime.UtcNow;
+
                 foreach (var baseCurrency in _supportedCurrencies)
                 {
                     var url = $"{baseUrl}/{apiKey}/latest/{baseCurrency}";
@@ -120,29 +131,79 @@ namespace ForexRateAlerter.Infrastructure.Services
 
                     if (apiResponse?.Result == "success" && apiResponse.ConversionRates != null)
                     {
-                        var exchangeRates = new List<ExchangeRate>();
+                        _logger.LogInformation(
+                            "API Response for {Base}: Result={Result}, Rates Count={Count}, Time Last Update UTC={TimeLastUpdate}",
+                            baseCurrency,
+                            apiResponse.Result,
+                            apiResponse.ConversionRates?.Count ?? 0,
+                            apiResponse.TimeLastUpdateUtc ?? "N/A"
+                        );
+
+                        var newRates = new List<ExchangeRate>();
+                        var historyRecords = new List<ExchangeRateHistory>();
 
                         foreach (var rate in apiResponse.ConversionRates)
                         {
                             if (_supportedCurrencies.Contains(rate.Key) && rate.Key != baseCurrency)
                             {
-                                exchangeRates.Add(new ExchangeRate
+                                var key = $"{baseCurrency}-{rate.Key}";
+                                var currentRateValue = rate.Value;
+                                bool isChanged = true;
+
+                                // Check if rate has changed
+                                if (existingRates.TryGetValue(key, out var existingRateVal))
                                 {
-                                    BaseCurrency = baseCurrency,
-                                    TargetCurrency = rate.Key,
-                                    Rate = rate.Value,
-                                    Source = "ExchangeRate-API",
-                                    Timestamp = DateTime.UtcNow
-                                });
+                                    if (existingRateVal == currentRateValue)
+                                    {
+                                        isChanged = false;
+                                    }
+                                }
+
+                                if (isChanged)
+                                {
+                                    // Add to ExchangeRates (Current State/Log)
+                                    newRates.Add(new ExchangeRate
+                                    {
+                                        BaseCurrency = baseCurrency,
+                                        TargetCurrency = rate.Key,
+                                        Rate = currentRateValue,
+                                        Source = "ExchangeRate-API",
+                                        Timestamp = timestamp
+                                    });
+
+                                    // Add to ExchangeRateHistory (Historical Analysis)
+                                    historyRecords.Add(new ExchangeRateHistory
+                                    {
+                                        BaseCurrency = baseCurrency,
+                                        TargetCurrency = rate.Key,
+                                        Rate = currentRateValue,
+                                        CreatedAt = timestamp,
+                                        Source = "ExchangeRate-API"
+                                    });
+                                }
                             }
                         }
 
-                        _context.ExchangeRates.AddRange(exchangeRates);
+                        if (newRates.Any())
+                        {
+                            _context.ExchangeRates.AddRange(newRates);
+                            _context.ExchangeRateHistory.AddRange(historyRecords);
+                            anyChanges = true;
+                            _logger.LogInformation($"Detected {newRates.Count} rate changes for base {baseCurrency}");
+                        }
                     }
                 }
 
-                await _context.SaveChangesAsync();
-                _logger.LogInformation($"Successfully fetched and stored exchange rates at {DateTime.UtcNow}");
+                if (anyChanges)
+                {
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation($"Successfully fetched and stored updated exchange rates at {timestamp}");
+                }
+                else
+                {
+                    _logger.LogInformation("No exchange rate changes detected. DB update skipped.");
+                }
+
                 return true;
             }
             catch (Exception ex)
@@ -295,6 +356,8 @@ namespace ForexRateAlerter.Infrastructure.Services
             public string? Result { get; set; }
             [System.Text.Json.Serialization.JsonPropertyName("conversion_rates")]
             public Dictionary<string, decimal> ConversionRates { get; set; } = new();
+            [System.Text.Json.Serialization.JsonPropertyName("time_last_update_utc")]
+            public string? TimeLastUpdateUtc { get; set; }
         }
     }
 }
