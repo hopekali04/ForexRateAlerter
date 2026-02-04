@@ -11,6 +11,7 @@ public class ExchangeRateHistoryService : IExchangeRateHistoryService
     private readonly ApplicationDbContext _context;
     private readonly IExchangeRateService _exchangeRateService;
     private readonly ILogger<ExchangeRateHistoryService> _logger;
+    private const string ExchangeRateApiSource = "ExchangeRateAPI";
 
     public ExchangeRateHistoryService(
         ApplicationDbContext context,
@@ -48,7 +49,7 @@ public class ExchangeRateHistoryService : IExchangeRateHistoryService
                     TargetCurrency = rate.TargetCurrency,
                     Rate = rate.Rate,
                     CreatedAt = timestamp,
-                    Source = "ExchangeRateAPI"
+                    Source = ExchangeRateApiSource
                 });
             }
 

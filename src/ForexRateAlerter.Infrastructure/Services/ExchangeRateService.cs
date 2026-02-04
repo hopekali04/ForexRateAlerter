@@ -274,6 +274,7 @@ namespace ForexRateAlerter.Infrastructure.Services
             };
         }
 
+        [System.Obsolete("This method is deprecated - use IExchangeRateHistoryService.GetTopMoversAsync instead")]
         public Task<TopMoversResponse> GetTopMoversAsync(string timeframe = "24h")
         {
             // This method is deprecated - use IExchangeRateHistoryService instead
