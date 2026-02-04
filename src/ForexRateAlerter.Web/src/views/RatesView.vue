@@ -264,115 +264,116 @@
       <div v-else-if="viewMode === 'table'">
         <!-- Desktop Table -->
         <div class="hidden md:block bg-blueprint-surface border border-solid border-blueprint-border overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="w-full">
-            <thead class="bg-blueprint-bg border-b border-solid border-blueprint-border">
-              <tr>
-                <th class="px-4 py-3 text-left text-xs font-sans font-semibold text-blueprint-text-secondary uppercase tracking-wide">
-                  Currency Pair
-                </th>
-                <th class="px-4 py-3 text-right text-xs font-sans font-semibold text-blueprint-text-secondary uppercase tracking-wide">
-                  Rate
-                </th>
-                <th class="px-4 py-3 text-right text-xs font-sans font-semibold text-blueprint-text-secondary uppercase tracking-wide">
-                  24h Change
-                </th>
-                <th class="px-4 py-3 text-right text-xs font-sans font-semibold text-blueprint-text-secondary uppercase tracking-wide">
-                  24h High
-                </th>
-                <th class="px-4 py-3 text-right text-xs font-sans font-semibold text-blueprint-text-secondary uppercase tracking-wide">
-                  24h Low
-                </th>
-                <th class="px-4 py-3 text-center text-xs font-sans font-semibold text-blueprint-text-secondary uppercase tracking-wide">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-blueprint-border">
-              <tr 
-                v-for="rate in filteredRates" 
-                :key="`${rate.baseCurrency}-${rate.targetCurrency}`"
-                class="hover:bg-blueprint-bg transition-colors cursor-pointer"
-                @click="openRateDetails(rate)"
-              >
-                <td class="px-4 py-3">
-                  <div class="flex items-center gap-2">
-                    <span class="text-sm font-mono font-bold text-blueprint-text">
-                      {{ rate.baseCurrency }}/{{ rate.targetCurrency }}
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-blueprint-bg border-b border-solid border-blueprint-border">
+                <tr>
+                  <th class="px-4 py-3 text-left text-xs font-sans font-semibold text-blueprint-text-secondary uppercase tracking-wide">
+                    Currency Pair
+                  </th>
+                  <th class="px-4 py-3 text-right text-xs font-sans font-semibold text-blueprint-text-secondary uppercase tracking-wide">
+                    Rate
+                  </th>
+                  <th class="px-4 py-3 text-right text-xs font-sans font-semibold text-blueprint-text-secondary uppercase tracking-wide">
+                    24h Change
+                  </th>
+                  <th class="px-4 py-3 text-right text-xs font-sans font-semibold text-blueprint-text-secondary uppercase tracking-wide">
+                    24h High
+                  </th>
+                  <th class="px-4 py-3 text-right text-xs font-sans font-semibold text-blueprint-text-secondary uppercase tracking-wide">
+                    24h Low
+                  </th>
+                  <th class="px-4 py-3 text-center text-xs font-sans font-semibold text-blueprint-text-secondary uppercase tracking-wide">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-blueprint-border">
+                <tr 
+                  v-for="rate in filteredRates" 
+                  :key="`${rate.baseCurrency}-${rate.targetCurrency}`"
+                  class="hover:bg-blueprint-bg transition-colors cursor-pointer"
+                  @click="openRateDetails(rate)"
+                >
+                  <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                      <span class="text-sm font-mono font-bold text-blueprint-text">
+                        {{ rate.baseCurrency }}/{{ rate.targetCurrency }}
+                      </span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-3 text-right">
+                    <span class="text-sm font-mono font-semibold text-blueprint-text">
+                      {{ formatRate(rate.rate) }}
                     </span>
-                  </div>
-                </td>
-                <td class="px-4 py-3 text-right">
-                  <span class="text-sm font-mono font-semibold text-blueprint-text">
-                    {{ formatRate(rate.rate) }}
-                  </span>
-                </td>
-                <td class="px-4 py-3 text-right">
-                  <div 
-                    v-if="rate.change24h !== undefined"
-                    class="inline-flex items-center text-xs font-mono px-2 py-1 border border-solid"
-                    :class="getRateChangeClass(rate.change24h)"
-                  >
-                    <svg 
-                      v-if="rate.change24h > 0" 
-                      class="w-3 h-3 mr-1" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
+                  </td>
+                  <td class="px-4 py-3 text-right">
+                    <div 
+                      v-if="rate.change24h !== undefined"
+                      class="inline-flex items-center text-xs font-mono px-2 py-1 border border-solid"
+                      :class="getRateChangeClass(rate.change24h)"
                     >
-                      <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
-                    </svg>
-                    <svg 
-                      v-else-if="rate.change24h < 0" 
-                      class="w-3 h-3 mr-1" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
-                    </svg>
-                    {{ formatChangePercent(rate.change24h) }}
-                  </div>
-                  <span v-else class="text-sm font-mono text-blueprint-text-secondary">N/A</span>
-                </td>
-                <td class="px-4 py-3 text-right">
-                  <span v-if="rate.high24h" class="text-sm font-mono text-blueprint-text">{{ formatRate(rate.high24h) }}</span>
-                  <span v-else class="text-sm font-mono text-blueprint-text-secondary">N/A</span>
-                </td>
-                <td class="px-4 py-3 text-right">
-                  <span v-if="rate.low24h" class="text-sm font-mono text-blueprint-text">{{ formatRate(rate.low24h) }}</span>
-                  <span v-else class="text-sm font-mono text-blueprint-text-secondary">N/A</span>
-                </td>
-                <td class="px-4 py-3">
-                  <div class="flex items-center justify-center gap-2">
-                    <button
-                      @click.stop="createAlertForPair(rate.baseCurrency, rate.targetCurrency)"
-                      class="p-1 text-blueprint-text-secondary hover:text-blueprint-primary transition-colors"
-                      title="Create Alert"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15 17h5l-5 5v-5zM9 12l2 2 4-4"/>
+                      <svg 
+                        v-if="rate.change24h > 0" 
+                        class="w-3 h-3 mr-1" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
                       </svg>
-                    </button>
-                    <button
-                      @click.stop="openRateDetails(rate)"
-                      class="p-1 text-blueprint-text-secondary hover:text-blueprint-primary transition-colors"
-                      title="View Details"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      <svg 
+                        v-else-if="rate.change24h < 0" 
+                        class="w-3 h-3 mr-1" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
                       </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-              <tr v-if="filteredRates.length === 0">
-                <td colspan="6" class="px-4 py-8 text-center">
-                  <p class="text-sm font-mono text-blueprint-text-secondary">No exchange rates match your search criteria</p>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                      {{ formatChangePercent(rate.change24h) }}
+                    </div>
+                    <span v-else class="text-sm font-mono text-blueprint-text-secondary">N/A</span>
+                  </td>
+                  <td class="px-4 py-3 text-right">
+                    <span v-if="rate.high24h" class="text-sm font-mono text-blueprint-text">{{ formatRate(rate.high24h) }}</span>
+                    <span v-else class="text-sm font-mono text-blueprint-text-secondary">N/A</span>
+                  </td>
+                  <td class="px-4 py-3 text-right">
+                    <span v-if="rate.low24h" class="text-sm font-mono text-blueprint-text">{{ formatRate(rate.low24h) }}</span>
+                    <span v-else class="text-sm font-mono text-blueprint-text-secondary">N/A</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex items-center justify-center gap-2">
+                      <button
+                        @click.stop="createAlertForPair(rate.baseCurrency, rate.targetCurrency)"
+                        class="p-1 text-blueprint-text-secondary hover:text-blueprint-primary transition-colors"
+                        title="Create Alert"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15 17h5l-5 5v-5zM9 12l2 2 4-4"/>
+                        </svg>
+                      </button>
+                      <button
+                        @click.stop="openRateDetails(rate)"
+                        class="p-1 text-blueprint-text-secondary hover:text-blueprint-primary transition-colors"
+                        title="View Details"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr v-if="filteredRates.length === 0">
+                  <td colspan="6" class="px-4 py-8 text-center">
+                    <p class="text-sm font-mono text-blueprint-text-secondary">No exchange rates match your search criteria</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <!-- Mobile Card View -->
@@ -647,7 +648,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { getEnrichedRates, refreshRates, getRateHistory, type ExchangeRate, type EnrichedExchangeRate } from '@/services/exchangeRateService';
 import Toast from '@/components/Toast.vue';

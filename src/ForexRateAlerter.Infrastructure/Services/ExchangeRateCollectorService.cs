@@ -23,7 +23,8 @@ public class ExchangeRateCollectorService : BackgroundService
         _serviceProvider = serviceProvider;
         _logger = logger;
         
-        var intervalMinutes = configuration.GetValue<int>("ExchangeRateHistory:IntervalMinutes", 60);
+        var intervalMinutesStr = configuration["ExchangeRateHistory:IntervalMinutes"] ?? "60";
+        var intervalMinutes = int.Parse(intervalMinutesStr);
         _collectionInterval = TimeSpan.FromMinutes(intervalMinutes);
     }
 
