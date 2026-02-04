@@ -69,6 +69,8 @@ namespace ForexRateAlerter.Api.Controllers
         public async Task<IActionResult> GetRateHistory(string baseCurrency, string targetCurrency, 
             [FromQuery] int days = 30)
         {
+            if (days < 1)
+                return BadRequest(new { error = "Days must be between 1 and 365." });
             if (days > 365) days = 365; // Limit to 1 year
 
             try

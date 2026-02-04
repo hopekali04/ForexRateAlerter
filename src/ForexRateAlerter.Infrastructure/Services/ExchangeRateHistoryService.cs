@@ -108,7 +108,7 @@ public class ExchangeRateHistoryService : IExchangeRateHistoryService
                     ChangePercent = r.OldestRate != 0
                         ? ((r.LatestRate - r.OldestRate) / r.OldestRate) * 100
                         : 0,
-                    Direction = r.LatestRate > r.OldestRate ? "up" : "down"
+                    Direction = r.LatestRate > r.OldestRate ? "up" : r.LatestRate < r.OldestRate ? "down" : "unchanged"
                 })
                 .OrderByDescending(m => Math.Abs(m.ChangePercent))
                 .Take(limit)
