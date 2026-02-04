@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using ForexRateAlerter.Core.Interfaces;
 using ForexRateAlerter.Core.Models;
+using ForexRateAlerter.Core.DTOs;
 using ForexRateAlerter.Infrastructure.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -43,6 +44,12 @@ namespace ForexRateAlerter.Infrastructure.Services
                 .ToListAsync();
 
             return latestRates;
+        }
+
+        public async Task<IEnumerable<ExchangeRate>> GetAllRatesAsync()
+        {
+            // Returns all latest rates for historical collection
+            return await GetLatestRatesAsync();
         }
 
         public async Task<bool> FetchAndStoreLatestRatesAsync()
@@ -227,6 +234,17 @@ namespace ForexRateAlerter.Infrastructure.Services
                     r.Timestamp.Year, r.Timestamp.Month, r.Timestamp.Day)),
                 _ => rates.GroupBy(r => r.Timestamp.Date)
             };
+        }
+
+        public Task<TopMoversResponse> GetTopMoversAsync(string timeframe = "24h")
+        {
+            // This method is deprecated - use IExchangeRateHistoryService instead
+            return Task.FromResult(new TopMoversResponse
+            {
+                TopMovers = Enumerable.Empty<TopMoverDto>(),
+                Timeframe = timeframe,
+                GeneratedAt = DateTime.UtcNow
+            });
         }
 
         private class ExchangeRateApiResponse
