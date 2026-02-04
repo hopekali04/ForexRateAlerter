@@ -1,4 +1,5 @@
 using ForexRateAlerter.Core.Models;
+using ForexRateAlerter.Core.DTOs;
 
 namespace ForexRateAlerter.Core.Interfaces
 {
@@ -6,8 +7,10 @@ namespace ForexRateAlerter.Core.Interfaces
     {
         Task<ExchangeRate?> GetLatestRateAsync(string baseCurrency, string targetCurrency);
         Task<IEnumerable<ExchangeRate>> GetLatestRatesAsync();
+        Task<IEnumerable<ExchangeRate>> GetAllRatesAsync(); // For historical collection
         Task<bool> FetchAndStoreLatestRatesAsync();
         Task<IEnumerable<ExchangeRate>> GetRateHistoryAsync(string baseCurrency, string targetCurrency, int days = 30);
         Task<IEnumerable<OHLCData>> GetOHLCDataAsync(string baseCurrency, string targetCurrency, string timeframe = "1h", int limit = 100);
+        Task<TopMoversResponse> GetTopMoversAsync(string timeframe = "24h");
     }
 }
