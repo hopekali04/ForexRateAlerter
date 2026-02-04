@@ -40,7 +40,8 @@ namespace ForexRateAlerter.Infrastructure.Services
         {
             var latestRates = await _context.ExchangeRates
                 .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
-                .Select(g => g.MaxBy(r => r.Timestamp))
+                .Select(g => g.OrderByDescending(r => r.Timestamp).FirstOrDefault())
+                .Where(r => r != null)
                 .ToListAsync();
 
             return latestRates!;
@@ -51,9 +52,12 @@ namespace ForexRateAlerter.Infrastructure.Services
             var latestRates = await GetLatestRatesAsync();
             var fromDate = DateTime.UtcNow.AddHours(-24);
 
-            // Fetch 24h stats using grouping
-            var stats = await _context.ExchangeRates
+            // Fetch 24h stats using grouping - materialize the groups first to safely access properties
+            var allRatesInWindow = await _context.ExchangeRates
                 .Where(r => r.Timestamp >= fromDate)
+                .ToListAsync();
+
+            var stats = allRatesInWindow
                 .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
                 .Select(g => new
                 {
@@ -61,10 +65,10 @@ namespace ForexRateAlerter.Infrastructure.Services
                     g.Key.TargetCurrency,
                     High = g.Max(r => r.Rate),
                     Low = g.Min(r => r.Rate),
-                    // We need the first rate in the 24h window for the "Open" price
-                    Open = g.MinBy(r => r.Timestamp)!.Rate
+                    // Get the first rate in the 24h window for the "Open" price
+                    Open = g.OrderBy(r => r.Timestamp).First().Rate
                 })
-                .ToListAsync();
+                .ToList();
 
             return latestRates.Select(rate =>
             {

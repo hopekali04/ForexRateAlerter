@@ -33,8 +33,16 @@ namespace ForexRateAlerter.Api.Controllers
         [HttpGet("latest")]
         public async Task<IActionResult> GetLatestRates()
         {
-            var rates = await _exchangeRateService.GetLatestRatesAsync();
-            return Ok(new { rates, timestamp = DateTime.UtcNow });
+            try
+            {
+                var rates = await _exchangeRateService.GetLatestRatesAsync();
+                return Ok(new { rates, timestamp = DateTime.UtcNow });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve latest rates");
+                return StatusCode(500, new { error = "An unexpected error occurred while retrieving latest rates." });
+            }
         }
 
         /// <summary>
@@ -43,8 +51,16 @@ namespace ForexRateAlerter.Api.Controllers
         [HttpGet("latest-enriched")]
         public async Task<IActionResult> GetEnrichedRates()
         {
-            var rates = await _exchangeRateService.GetEnrichedRatesAsync();
-            return Ok(new { rates, timestamp = DateTime.UtcNow });
+            try
+            {
+                var rates = await _exchangeRateService.GetEnrichedRatesAsync();
+                return Ok(new { rates, timestamp = DateTime.UtcNow });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve enriched rates");
+                return StatusCode(500, new { error = "An unexpected error occurred while retrieving enriched rates." });
+            }
         }
 
         /// <summary>
