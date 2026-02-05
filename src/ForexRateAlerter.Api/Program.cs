@@ -23,6 +23,16 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 // Register HttpClient
 builder.Services.AddHttpClient();
+builder.Services.AddHttpClient("FxRatesApi", (serviceProvider, client) =>
+{
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    var baseUrl = configuration["fxapi:BaseUrl"];
+    client.BaseAddress = new Uri(baseUrl!);
+});
+
+// Configure Settings
+builder.Services.Configure<ForexRateAlerter.Core.Models.ExternalApiSettings>(
+    builder.Configuration.GetSection("fxapi"));
 
 // Register application services
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -33,6 +43,7 @@ builder.Services.AddScoped<IExchangeRateHistoryService, ExchangeRateHistoryServi
 
 // Register background services
 builder.Services.AddHostedService<AlertBackgroundService>();
+builder.Services.AddHostedService<ExchangeRateSyncService>();
 
 // Configure JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
