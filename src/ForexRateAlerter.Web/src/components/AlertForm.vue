@@ -196,7 +196,7 @@ const isSubmitting = ref(false);
 
 const currentRateDisplay = computed(() => {
   if (formData.value.baseCurrency && formData.value.targetCurrency) {
-    const pair = `${formData.value.baseCurrency}/${formData.value.targetCurrency}`;
+    // const pair = `${formData.value.baseCurrency}/${formData.value.targetCurrency}`;
     const rate = exchangeStore.rates.find(r => 
       r.baseCurrency === formData.value.baseCurrency && 
       r.targetCurrency === formData.value.targetCurrency
@@ -272,8 +272,8 @@ const handleSubmit = () => {
   
   emit('submit', {
     ...formData.value,
-    condition: parseInt(formData.value.condition.toString()), 
-    targetRate: parseFloat(rateValue.toString()).toFixed(4), // Ensure 4 decimal precision
+    condition: Number(formData.value.condition), 
+    targetRate: parseFloat(rateValue.toString()),
   });
   // We don't automatically close here in case the parent wants to handle errors
   // But UserDashboardView expects it to close. 

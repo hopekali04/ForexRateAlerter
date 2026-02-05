@@ -383,25 +383,12 @@ const closeAlertModal = () => {
   selectedPair.value = '';
 };
 
-const mapCondition = (condition: string | number): 'GreaterThan' | 'LessThan' | 'EqualTo' => {
-  const conditionStr = String(condition);
-  const conditionMap: Record<string, 'GreaterThan' | 'LessThan' | 'EqualTo'> = {
-    '1': 'GreaterThan',
-    '2': 'LessThan',
-    '3': 'EqualTo',
-    'GreaterThan': 'GreaterThan',
-    'LessThan': 'LessThan',
-    'EqualTo': 'EqualTo',
-  };
-  return conditionMap[conditionStr] || 'GreaterThan';
-};
-
 const handleCreateAlert = async (formData: any) => {
   try {
     await createAlert({
       baseCurrency: formData.baseCurrency,
       targetCurrency: formData.targetCurrency,
-      condition: mapCondition(formData.condition),
+      condition: Number(formData.condition),
       targetRate: parseFloat(formData.targetRate),
     });
     

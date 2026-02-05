@@ -8,12 +8,12 @@ const API_URL = `${base_URL}/alert`;
 interface CreateAlertData {
   baseCurrency: string;
   targetCurrency: string;
-  condition: 'GreaterThan' | 'LessThan' | 'EqualTo';
+  condition: number;
   targetRate: number;
 }
 
 interface UpdateAlertData {
-  condition?: 'GreaterThan' | 'LessThan' | 'EqualTo';
+  condition?: number;
   targetRate?: number;
   isActive?: boolean;
 }
