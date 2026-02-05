@@ -1,9 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using System.Text.Json;
 using ForexRateAlerter.Core.Interfaces;
 using ForexRateAlerter.Core.DTOs;
+using ForexRateAlerter.Core.Models;
 using ForexRateAlerter.Infrastructure.Data;
+using ForexRateAlerter.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace ForexRateAlerter.Api.Controllers
@@ -389,6 +393,80 @@ namespace ForexRateAlerter.Api.Controllers
             {
                 _logger.LogError(ex, "Debug endpoint failed");
                 return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Debug endpoint to test the synthetic rate calculation logic without saving to DB
+        /// </summary>
+        [HttpGet("debug/synthetic-rates")]
+        [AllowAnonymous] // Debugging only - remove in production or keep restricted
+        public async Task<IActionResult> DebugSyntheticRates(
+            [FromServices] IHttpClientFactory httpClientFactory, 
+            [FromServices] IOptions<ExternalApiSettings> apiSettings)
+        {
+            var _apiSettings = apiSettings.Value;
+            var client = httpClientFactory.CreateClient("FxRatesApi");
+            var currencies = string.Join(",", _apiSettings.SupportedCurrencies);
+            
+            try
+            {
+                // Fetch RAW USD Data
+                var url = $"latest?base=USD&currencies={currencies}&resolution=1h&places=6&api_key={_apiSettings.Key}";
+                var response = await client.GetAsync(url);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    return BadRequest(new { error = $"API Call Failed: {response.StatusCode}", url = url.Replace(_apiSettings.Key, "REDACTED") });
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var data = JsonSerializer.Deserialize<FxRatesApiResponse>(content, options);
+
+                if (data?.Success != true || data.Rates == null)
+                {
+                    return BadRequest(new { error = "API returned invalid data", rawResponse = content });
+                }
+
+                var calculatedRates = new List<object>();
+
+                // Matrix Calculation
+                foreach (var baseSym in _apiSettings.SupportedCurrencies)
+                {
+                    foreach (var targetSym in _apiSettings.SupportedCurrencies)
+                    {
+                        if (baseSym == targetSym) continue;
+
+                        if (data.Rates.TryGetValue(baseSym, out decimal usdToBaseRate) &&
+                            data.Rates.TryGetValue(targetSym, out decimal usdToTargetRate))
+                        {
+                            if (usdToBaseRate == 0) continue;
+
+                            decimal calculatedRate = Math.Round(usdToTargetRate / usdToBaseRate, 6);
+
+                            calculatedRates.Add(new 
+                            { 
+                                Pair = $"{baseSym}/{targetSym}",
+                                Method = $"({usdToTargetRate} / {usdToBaseRate})",
+                                Rate = calculatedRate
+                            });
+                        }
+                    }
+                }
+
+                return Ok(new 
+                { 
+                    Message = "Synthetic Calculation Debug Result",
+                    TotalPairsCalculated = calculatedRates.Count,
+                    SourceTimestamp = data.Timestamp,
+                    BaseUsdRates = data.Rates,
+                    CalculatedCrossRates = calculatedRates
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message, stack = ex.StackTrace });
             }
         }
     }
