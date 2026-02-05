@@ -19,13 +19,16 @@
       </div>
 
       <!-- Dashboard Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Currency Strength (Takes 1 column) -->
-        <div class="lg:col-span-1">
-          <CurrencyStrength @select-pair="handleSelectPair" />
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Currency Strength (Takes 2 column) -->
+        <div class="lg:col-span-2">
+          <CurrencyStrength 
+            @select-pair="handleSelectPair"
+            @view-details="handleViewDetails"
+          />
         </div>
 
-        <!-- Active Alerts List (Takes 2 columns) -->
+        <!-- Active Alerts List (Takes 1 columns) -->
         <div class="lg:col-span-2">
           <div class="bg-blueprint-surface border border-blueprint-border">
             <!-- Header -->
@@ -138,6 +141,97 @@
       @submit="handleCreateAlert"
     />
 
+    <!-- Details Modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div 
+          v-if="isDetailsModalOpen"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-blueprint-text bg-opacity-80"
+          @click.self="closeDetailsModal"
+        >
+          <!-- Modal Container -->
+          <div class="bg-white border-2 border-blueprint-border w-full max-w-lg mx-4">
+            <!-- Header -->
+            <div class="border-b border-blueprint-border px-6 py-4 flex justify-between items-center bg-white">
+              <div>
+                <h2 class="font-sans text-lg font-bold text-blueprint-text uppercase">
+                  Rate Information
+                </h2>
+                <p class="font-sans text-xs text-blueprint-text-secondary mt-1">
+                  DETAILED EXCHANGE RATE DATA
+                </p>
+              </div>
+              <button 
+                @click="closeDetailsModal"
+                class="text-blueprint-text hover:text-blueprint-error transition-colors"
+              >
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Content -->
+            <div class="p-6 bg-white" v-if="selectedDetails">
+              <div class="flex justify-between items-start mb-6">
+                <div>
+                  <div class="text-4xl font-mono font-bold text-blueprint-text">{{ selectedDetails.rate.toFixed(4) }}</div>
+                  <div class="text-sm font-sans font-bold text-blueprint-text-secondary mt-1">1 {{ selectedDetails.baseCurrency }} = {{ selectedDetails.targetCurrency }}</div>
+                </div>
+                <div 
+                  class="px-3 py-1 text-sm font-mono font-bold border"
+                  :class="selectedDetails.change24h >= 0 
+                    ? 'border-blueprint-primary text-blueprint-primary bg-green-50' 
+                    : 'border-blueprint-error text-blueprint-error bg-red-50'"
+                >
+                  {{ selectedDetails.change24h >= 0 ? '+' : '' }}{{ selectedDetails.change24h.toFixed(2) }}%
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4 mb-6">
+                <!-- 24h High -->
+                <div class="p-3 border border-blueprint-border bg-blueprint-surface">
+                  <div class="text-xs font-sans font-bold text-blueprint-text-secondary uppercase mb-1">24h High</div>
+                  <div class="font-mono font-bold text-blueprint-text">{{ selectedDetails.high24h.toFixed(4) }}</div>
+                </div>
+                <!-- 24h Low -->
+                <div class="p-3 border border-blueprint-border bg-blueprint-surface">
+                  <div class="text-xs font-sans font-bold text-blueprint-text-secondary uppercase mb-1">24h Low</div>
+                  <div class="font-mono font-bold text-blueprint-text">{{ selectedDetails.low24h.toFixed(4) }}</div>
+                </div>
+                <!-- Open -->
+                <div class="p-3 border border-blueprint-border bg-blueprint-surface">
+                  <div class="text-xs font-sans font-bold text-blueprint-text-secondary uppercase mb-1">Open</div>
+                  <div class="font-mono font-bold text-blueprint-text">{{ selectedDetails.open24h.toFixed(4) }}</div>
+                </div>
+                <!-- Source -->
+                <div class="p-3 border border-blueprint-border bg-blueprint-surface">
+                  <div class="text-xs font-sans font-bold text-blueprint-text-secondary uppercase mb-1">Source</div>
+                  <div class="font-mono font-bold text-blueprint-text truncate">{{ selectedDetails.source || 'Aggregated' }}</div>
+                </div>
+              </div>
+
+              <!-- Action Button -->
+              <button 
+                @click="openAlertFromDetails"
+                class="w-full py-3 bg-blueprint-text text-white font-sans text-sm font-bold uppercase hover:bg-blueprint-primary transition-colors flex items-center justify-center gap-2"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                </svg>
+                Set Alert for this Pair
+              </button>
+            </div>
+            
+            <!-- Loading State -->
+            <div v-else class="p-12 text-center">
+              <span class="font-sans text-xs text-blueprint-text-secondary">Loading details...</span>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- Toast Notification -->
     <Toast 
       :show="toast.show"
@@ -149,10 +243,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { createAlert, getUserAlerts, deleteAlert } from '@/services/alertService';
+import { getEnrichedRates, type EnrichedExchangeRate } from '@/services/exchangeRateService';
 import MarketTicker from '@/components/MarketTicker.vue';
 import CurrencyStrength from '@/components/CurrencyStrength.vue';
 import AlertForm from '@/components/AlertForm.vue';
@@ -179,6 +274,8 @@ const authStore = useAuthStore();
 
 const alerts = ref<Alert[]>([]);
 const isModalOpen = ref(false);
+const isDetailsModalOpen = ref(false);
+const selectedDetails = ref<EnrichedExchangeRate | null>(null);
 const selectedPair = ref('');
 const currentTime = ref('');
 const toast = ref<ToastState>({
@@ -206,7 +303,7 @@ let timeInterval: number | null = null;
 onMounted(() => {
   loadAlerts();
   updateTime();
-  timeInterval = window.setInterval(updateTime, 1000);
+  timeInterval = window.setInterval(updateTime, 10000);
 });
 
 onUnmounted(() => {
@@ -220,8 +317,60 @@ const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info')
 };
 
 const handleSelectPair = (pair: string) => {
-  selectedPair.value = pair;
+  // Normalize pair string to handle "EUR/USD" or "EURUSD"
+  const cleanPair = pair.replace('/', '');
+  // Format for the form which might expect "EUR/USD" depending on how it's built
+  // But AlertForm takes prefill-pair.
+  selectedPair.value = pair.includes('/') ? pair : cleanPair.slice(0, 3) + '/' + cleanPair.slice(3);
   isModalOpen.value = true;
+};
+
+const handleViewDetails = async (pair: string) => {
+  try {
+    // 1. Show loading state or modal immediately
+    isDetailsModalOpen.value = true;
+    selectedDetails.value = null; // Clear previous
+
+    // 2. Fetch enriched rates (assuming we don't have a reliable single-endpoint yet)
+    // Optimization: In a real app, we'd cache this or use the store. 
+    // For now, fetching fresh ensures accuracy.
+    const response = await getEnrichedRates();
+    
+    // 3. Find the pair
+    const cleanPair = pair.replace('/', '');
+    const base = cleanPair.substring(0, 3);
+    const target = cleanPair.substring(base.length); // Handle 3-char codes usually
+    
+    // Attempt to find match
+    const found = response.rates.find((r: EnrichedExchangeRate) => 
+      (r.baseCurrency === base && r.targetCurrency === target) ||
+      (`${r.baseCurrency}/${r.targetCurrency}` === pair)
+    );
+
+    if (found) {
+      selectedDetails.value = found;
+    } else {
+      showToast('Details not available for this pair.', 'error');
+      closeDetailsModal();
+    }
+  } catch (error) {
+    console.error('Failed to get details:', error);
+    showToast('Failed to load rate details.', 'error');
+    closeDetailsModal();
+  }
+};
+
+const closeDetailsModal = () => {
+  isDetailsModalOpen.value = false;
+  selectedDetails.value = null;
+};
+
+const openAlertFromDetails = () => {
+  if (selectedDetails.value) {
+    const pair = `${selectedDetails.value.baseCurrency}/${selectedDetails.value.targetCurrency}`;
+    closeDetailsModal();
+    handleSelectPair(pair);
+  }
 };
 
 const openAlertModal = () => {
