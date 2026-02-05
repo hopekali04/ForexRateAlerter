@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { getLatestRates, type ExchangeRate } from '@/services/exchangeRateService';
+import { getEnrichedRates, type EnrichedExchangeRate } from '@/services/exchangeRateService';
 
 interface TickerRate {
   pair: string;
@@ -65,40 +65,31 @@ interface TickerRate {
 
 const tickerRates = ref<TickerRate[]>([]);
 const isLoading = ref(true);
-const previousRates = new Map<string, number>();
 
 let updateInterval: number | null = null;
 
 const fetchRates = async () => {
   try {
-    const response = await getLatestRates();
+    // Use ENRICHED endpoint to get server-side calculated 24h change
+    const response = await getEnrichedRates();
     
     if (response?.rates && Array.isArray(response.rates)) {
       // Transform API data to ticker format
-      tickerRates.value = response.rates.slice(0, 10).map((rate: ExchangeRate) => {
+      tickerRates.value = response.rates.slice(0, 15).map((rate: EnrichedExchangeRate) => {
         const pair = `${rate.baseCurrency}/${rate.targetCurrency}`;
-        const currentRate = rate.rate; // Already a number from API
-        const previousRate = previousRates.get(pair) || currentRate;
-        
-        // Calculate percentage change
-        const change = previousRate !== 0 
-          ? ((currentRate - previousRate) / previousRate) * 100 
-          : 0;
-        
-        // Store current rate for next comparison
-        previousRates.set(pair, currentRate);
         
         return {
           pair,
-          rate: currentRate.toFixed(4),
-          change: parseFloat(change.toFixed(2))
+          rate: rate.rate.toFixed(4),
+          // Backend provides the true 24h change percentage
+          change: parseFloat(rate.change24h.toFixed(2)) 
         };
       });
     }
     
     isLoading.value = false;
   } catch (error) {
-    console.error('Failed to fetch exchange rates:', error);
+    console.error('Failed to fetch enriched exchange rates:', error);
     isLoading.value = false;
     // Fallback to empty array on error - graceful degradation
     if (tickerRates.value.length === 0) {
@@ -109,8 +100,8 @@ const fetchRates = async () => {
 
 onMounted(async () => {
   await fetchRates();
-  // Refresh rates every 30 seconds
-  updateInterval = window.setInterval(fetchRates, 30000);
+  // Refresh rates every 5 minutes
+  updateInterval = window.setInterval(fetchRates, 300000);
 });
 
 onUnmounted(() => {
