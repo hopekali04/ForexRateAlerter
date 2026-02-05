@@ -50,6 +50,7 @@ TestResults/
 *.coveragexml
 # Publish Web Output
 wwwroot/
+publish/
 # Azure Web Apps publish settings
 *.PublishSettings
 # Resharper

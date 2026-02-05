@@ -1,8 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using System.Text.Json;
 using ForexRateAlerter.Core.Interfaces;
 using ForexRateAlerter.Core.DTOs;
+using ForexRateAlerter.Core.Models;
+using ForexRateAlerter.Infrastructure.Data;
+using ForexRateAlerter.Infrastructure.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace ForexRateAlerter.Api.Controllers
 {
@@ -14,17 +20,20 @@ namespace ForexRateAlerter.Api.Controllers
         private readonly IExchangeRateService _exchangeRateService;
         private readonly IExchangeRateHistoryService _exchangeRateHistoryService;
         private readonly ILogger<ExchangeRateController> _logger;
+        private readonly ApplicationDbContext _context;
         private static readonly HashSet<string> ValidTimeframes = new() { "1m", "5m", "15m", "1h", "1D" };
         private static readonly HashSet<string> TopMoverTimeframes = new() { "24h", "7d", "30d" };
 
         public ExchangeRateController(
             IExchangeRateService exchangeRateService,
             IExchangeRateHistoryService exchangeRateHistoryService,
-            ILogger<ExchangeRateController> logger)
+            ILogger<ExchangeRateController> logger,
+            ApplicationDbContext context)
         {
             _exchangeRateService = exchangeRateService;
             _exchangeRateHistoryService = exchangeRateHistoryService;
             _logger = logger;
+            _context = context;
         }
 
         /// <summary>
@@ -201,6 +210,264 @@ namespace ForexRateAlerter.Api.Controllers
                 return Ok(new { message = "Exchange rates updated successfully" });
             
             return StatusCode(500, new { error = "Failed to update exchange rates" });
+        }
+
+        /// <summary>
+        /// DEBUG: Check RAW data for CAD/AUD pair in last 24h
+        /// </summary>
+        [HttpGet("debug/raw-cad-aud")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DebugRawCadAud()
+        {
+            try
+            {
+                var fromDate = DateTime.UtcNow.AddHours(-24);
+                
+                // Get ALL CAD/AUD records from last 24h
+                var cadAudRecords = await _context.ExchangeRates
+                    .Where(r => r.BaseCurrency == "CAD" && r.TargetCurrency == "AUD" && r.Timestamp >= fromDate)
+                    .OrderBy(r => r.Timestamp)
+                    .Select(r => new
+                    {
+                        r.Rate,
+                        r.Timestamp,
+                        r.Source,
+                        AgeMinutes = (DateTime.UtcNow - r.Timestamp).TotalMinutes
+                    })
+                    .ToListAsync();
+
+                var stats = cadAudRecords.Any() ? new
+                {
+                    count = cadAudRecords.Count,
+                    min = cadAudRecords.Min(r => r.Rate),
+                    max = cadAudRecords.Max(r => r.Rate),
+                    oldest = cadAudRecords.First().Rate,
+                    latest = cadAudRecords.Last().Rate,
+                    uniqueRates = cadAudRecords.Select(r => r.Rate).Distinct().Count(),
+                    calculatedChange = cadAudRecords.Any() && cadAudRecords.First().Rate != 0
+                        ? ((cadAudRecords.Last().Rate - cadAudRecords.First().Rate) / cadAudRecords.First().Rate) * 100
+                        : 0
+                } : null;
+
+                return Ok(new
+                {
+                    pair = "CAD/AUD",
+                    currentTime = DateTime.UtcNow,
+                    lookbackTime = fromDate,
+                    recordCount = cadAudRecords.Count,
+                    records = cadAudRecords,
+                    statistics = stats,
+                    diagnosis = stats?.uniqueRates > 1 
+                        ? $"✅ Found {stats.uniqueRates} unique rates - variation exists!"
+                        : "❌ All records have identical rates"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Debug raw data check failed");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// DEBUG: Check timestamps of data in ExchangeRates table
+        /// </summary>
+        [HttpGet("debug/data-freshness")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DebugDataFreshness()
+        {
+            try
+            {
+                var now = DateTime.UtcNow;
+                
+                // Get timestamp range from ExchangeRates table
+                var exchangeRates = await _context.ExchangeRates
+                    .OrderByDescending(r => r.Timestamp)
+                    .Take(10)
+                    .Select(r => new
+                    {
+                        r.BaseCurrency,
+                        r.TargetCurrency,
+                        r.Rate,
+                        r.Timestamp,
+                        r.Source,
+                        AgeMinutes = (now - r.Timestamp).TotalMinutes
+                    })
+                    .ToListAsync();
+
+                // Check 24h window for any rate changes
+                var last24h = await _context.ExchangeRates
+                    .Where(r => r.Timestamp >= now.AddHours(-24))
+                    .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
+                    .Select(g => new
+                    {
+                        Pair = $"{g.Key.BaseCurrency}/{g.Key.TargetCurrency}",
+                        Count = g.Count(),
+                        MinRate = g.Min(r => r.Rate),
+                        MaxRate = g.Max(r => r.Rate),
+                        HasVariation = g.Min(r => r.Rate) != g.Max(r => r.Rate),
+                        OldestTimestamp = g.Min(r => r.Timestamp),
+                        LatestTimestamp = g.Max(r => r.Timestamp)
+                    })
+                    .ToListAsync();
+
+                return Ok(new
+                {
+                    currentTime = now,
+                    latestRecords = exchangeRates,
+                    last24hAnalysis = new
+                    {
+                        totalPairs = last24h.Count,
+                        pairsWithVariation = last24h.Count(p => p.HasVariation),
+                        pairsWithoutVariation = last24h.Count(p => !p.HasVariation),
+                        samplePairs = last24h.Take(5)
+                    },
+                    diagnosis = last24h.Any(p => p.HasVariation)
+                        ? $"✅ {last24h.Count(p => p.HasVariation)} pairs show rate variation in last 24h"
+                        : "❌ NO rate variation detected - API returning same rates repeatedly"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Debug freshness check failed");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// DEBUG: Inspect ExchangeRateHistory table for all pairs - check which ones have movement
+        /// </summary>
+        [HttpGet("debug/all-history-data")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DebugAllHistoryData()
+        {
+            try
+            {
+                var lookbackTime = DateTime.UtcNow.AddHours(-24);
+                
+                // Get ALL historical data from last 24h
+                var allHistory = await _context.ExchangeRates
+                    .Where(r => r.Timestamp >= lookbackTime)
+                    .OrderBy(r => r.BaseCurrency)
+                    .ThenBy(r => r.TargetCurrency)
+                    .ThenBy(r => r.Timestamp)
+                    .ToListAsync();
+
+                var analysis = allHistory
+                    .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
+                    .Select(g => new
+                    {
+                        pair = $"{g.Key.BaseCurrency}/{g.Key.TargetCurrency}",
+                        recordCount = g.Count(),
+                        oldestRate = g.OrderBy(r => r.Timestamp).First().Rate,
+                        latestRate = g.OrderByDescending(r => r.Timestamp).First().Rate,
+                        changePercent = g.OrderBy(r => r.Timestamp).First().Rate != 0
+                            ? ((g.OrderByDescending(r => r.Timestamp).First().Rate - g.OrderBy(r => r.Timestamp).First().Rate) 
+                               / g.OrderBy(r => r.Timestamp).First().Rate) * 100
+                            : 0,
+                        oldestTimestamp = g.OrderBy(r => r.Timestamp).First().Timestamp,
+                        latestTimestamp = g.OrderByDescending(r => r.Timestamp).First().Timestamp,
+                        hasMovement = g.OrderBy(r => r.Timestamp).First().Rate != g.OrderByDescending(r => r.Timestamp).First().Rate
+                    })
+                    .OrderByDescending(x => Math.Abs(x.changePercent))
+                    .ToList();
+
+                var pairsWithMovement = analysis.Where(x => x.hasMovement).ToList();
+                var pairsWithoutMovement = analysis.Where(x => !x.hasMovement).ToList();
+
+                return Ok(new
+                {
+                    currentTime = DateTime.UtcNow,
+                    lookbackTime = lookbackTime,
+                    totalPairs = analysis.Count,
+                    pairsWithMovement = pairsWithMovement.Count,
+                    pairsWithoutMovement = pairsWithoutMovement.Count,
+                    topMovers = pairsWithMovement.Take(10),
+                    staticPairs = pairsWithoutMovement.Take(5),
+                    diagnosis = pairsWithMovement.Any() 
+                        ? $"✅ {pairsWithMovement.Count} pairs have movement - top-movers should work!" 
+                        : "❌ NO pairs have movement - market might be closed or API returning stale data"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Debug endpoint failed");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Debug endpoint to test the synthetic rate calculation logic without saving to DB
+        /// </summary>
+        [HttpGet("debug/synthetic-rates")]
+        [AllowAnonymous] // Debugging only - remove in production or keep restricted
+        public async Task<IActionResult> DebugSyntheticRates(
+            [FromServices] IHttpClientFactory httpClientFactory, 
+            [FromServices] IOptions<ExternalApiSettings> apiSettings)
+        {
+            var _apiSettings = apiSettings.Value;
+            var client = httpClientFactory.CreateClient("FxRatesApi");
+            var currencies = string.Join(",", _apiSettings.SupportedCurrencies);
+            
+            try
+            {
+                // Fetch RAW USD Data
+                var url = $"latest?base=USD&currencies={currencies}&resolution=1h&places=6&api_key={_apiSettings.Key}";
+                var response = await client.GetAsync(url);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    return BadRequest(new { error = $"API Call Failed: {response.StatusCode}", url = url.Replace(_apiSettings.Key, "REDACTED") });
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var data = JsonSerializer.Deserialize<FxRatesApiResponse>(content, options);
+
+                if (data?.Success != true || data.Rates == null)
+                {
+                    return BadRequest(new { error = "API returned invalid data", rawResponse = content });
+                }
+
+                var calculatedRates = new List<object>();
+
+                // Matrix Calculation
+                foreach (var baseSym in _apiSettings.SupportedCurrencies)
+                {
+                    foreach (var targetSym in _apiSettings.SupportedCurrencies)
+                    {
+                        if (baseSym == targetSym) continue;
+
+                        if (data.Rates.TryGetValue(baseSym, out decimal usdToBaseRate) &&
+                            data.Rates.TryGetValue(targetSym, out decimal usdToTargetRate))
+                        {
+                            if (usdToBaseRate == 0) continue;
+
+                            decimal calculatedRate = Math.Round(usdToTargetRate / usdToBaseRate, 6);
+
+                            calculatedRates.Add(new 
+                            { 
+                                Pair = $"{baseSym}/{targetSym}",
+                                Method = $"({usdToTargetRate} / {usdToBaseRate})",
+                                Rate = calculatedRate
+                            });
+                        }
+                    }
+                }
+
+                return Ok(new 
+                { 
+                    Message = "Synthetic Calculation Debug Result",
+                    TotalPairsCalculated = calculatedRates.Count,
+                    SourceTimestamp = data.Timestamp,
+                    BaseUsdRates = data.Rates,
+                    CalculatedCrossRates = calculatedRates
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message, stack = ex.StackTrace });
+            }
         }
     }
 }

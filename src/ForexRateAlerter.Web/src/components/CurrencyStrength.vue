@@ -41,43 +41,59 @@
         v-else
         v-for="mover in topMovers" 
         :key="mover.pair"
-        @click="$emit('select-pair', mover.pair)"
-        class="cursor-pointer group"
+        class="group relative"
       >
-        <!-- Currency Pair Label -->
-        <div class="flex justify-between items-baseline mb-1">
-          <div class="flex items-center">
-            <span class="font-sans text-xs font-bold text-blueprint-text">{{ mover.pair }}</span>
-            <span 
-              class="font-mono text-xs font-semibold ml-2"
-              :class="mover.change >= 0 ? 'text-blueprint-primary' : 'text-blueprint-error'"
-            >
-              {{ mover.rate }}
-            </span>
+        <!-- Clickable Area for Details -->
+        <div 
+          @click="$emit('view-details', mover.pair)"
+          class="cursor-pointer"
+        >
+          <!-- Currency Pair Label -->
+          <div class="flex justify-between items-baseline mb-1">
+            <div class="flex items-center">
+              <span class="font-sans text-xs font-bold text-blueprint-text">{{ mover.pair }}</span>
+              <span 
+                class="font-mono text-xs font-semibold ml-2"
+                :class="mover.change >= 0 ? 'text-blueprint-primary' : 'text-blueprint-error'"
+              >
+                {{ mover.rate }}
+              </span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span 
+                class="font-mono text-xs font-bold"
+                :class="mover.change >= 0 ? 'text-blueprint-primary' : 'text-blueprint-error'"
+              >
+                {{ mover.change >= 0 ? '▲' : '▼' }} {{ Math.abs(mover.change).toFixed(2) }}%
+              </span>
+              
+              <!-- Alert Button (Stop Propagation to prevent detail view) -->
+              <button 
+                @click.stop="$emit('select-pair', mover.pair)"
+                class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-blueprint-bg border border-transparent hover:border-blueprint-border"
+                title="Create Alert"
+              >
+                <svg class="w-3 h-3 text-blueprint-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                </svg>
+              </button>
+            </div>
           </div>
-          <div class="flex items-center">
-            <span 
-              class="font-mono text-xs font-bold"
-              :class="mover.change >= 0 ? 'text-blueprint-primary' : 'text-blueprint-error'"
-            >
-              {{ mover.change >= 0 ? '▲' : '▼' }} {{ Math.abs(mover.change).toFixed(2) }}%
-            </span>
-          </div>
-        </div>
 
-        <!-- Divergence Bar -->
-        <div class="h-8 border border-blueprint-border bg-blueprint-bg relative overflow-hidden group-hover:border-2 group-hover:border-blueprint-primary transition-all">
-          <div 
-            class="h-full transition-all duration-500"
-            :class="mover.change >= 0 ? 'bg-blueprint-primary' : 'bg-blueprint-error'"
-            :style="{ width: `${Math.min(Math.abs(mover.change) * 20, 100)}%` }"
-          >
-          </div>
-          <!-- Value Label Inside Bar -->
-          <div class="absolute inset-0 flex items-center px-2">
-            <span class="font-mono text-xs font-bold text-blueprint-text">
-              {{ mover.change >= 0 ? 'GAINING' : 'LOSING' }}
-            </span>
+          <!-- Divergence Bar -->
+          <div class="h-8 border border-blueprint-border bg-blueprint-bg relative overflow-hidden group-hover:border-2 group-hover:border-blueprint-primary transition-all">
+            <div 
+              class="h-full transition-all duration-500"
+              :class="mover.change >= 0 ? 'bg-blueprint-primary' : 'bg-blueprint-error'"
+              :style="{ width: `${Math.min(Math.abs(mover.change) * 20, 100)}%` }"
+            >
+            </div>
+            <!-- Value Label Inside Bar -->
+            <div class="absolute inset-0 flex items-center px-2">
+              <span class="font-mono text-xs font-bold text-blueprint-text">
+                {{ mover.change >= 0 ? 'GAINING' : 'LOSING' }}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -112,6 +128,7 @@ interface CurrencyMover {
 
 defineEmits<{
   'select-pair': [pair: string]
+  'view-details': [pair: string]
 }>();
 
 const topMovers = ref<CurrencyMover[]>([]);
