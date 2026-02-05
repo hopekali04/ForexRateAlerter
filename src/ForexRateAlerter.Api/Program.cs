@@ -42,8 +42,14 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IExchangeRateHistoryService, ExchangeRateHistoryService>();
 
 // Register background services
+// Alert monitoring (every hour)
 builder.Services.AddHostedService<AlertBackgroundService>();
+
+// Synthetic rate calculation via triangular arbitrage (every hour)
 builder.Services.AddHostedService<ExchangeRateSyncService>();
+
+// External API baseline fetch from exchangerate-api.com (every 24 hours)
+builder.Services.AddHostedService<ExternalRateFetchService>();
 
 // Configure JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
