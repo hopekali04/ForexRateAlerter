@@ -40,12 +40,26 @@ namespace ForexRateAlerter.Infrastructure.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Synthetic Exchange Engine Started. Cycle: {Interval}", _period);
+            _logger.LogInformation("═══════════════════════════════════════════════════════");
+            _logger.LogInformation("║ Synthetic Exchange Rate Engine STARTED              ║");
+            _logger.LogInformation("║ Cycle Interval: {Interval}                          ║", _period);
+            _logger.LogInformation("║ Algorithm: Triangular Arbitrage (USD Base)          ║");
+            _logger.LogInformation("═══════════════════════════════════════════════════════");
+
+            try
+            {
+                // Initial run (immediate)
+                _logger.LogInformation("Starting INITIAL calculation cycle...");
+                await SyncAndCalculateRatesAsync(stoppingToken);
+                _logger.LogInformation("Initial cycle COMPLETE. Next cycle in {Delay}", _period);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "FATAL ERROR during initial sync. Service cannot continue.");
+                throw; // Rethrow to surface configuration issues
+            }
 
             using var timer = new PeriodicTimer(_period);
-            
-            // Initial run
-            await SyncAndCalculateRatesAsync(stoppingToken);
 
             while (await timer.WaitForNextTickAsync(stoppingToken) && !stoppingToken.IsCancellationRequested)
             {
@@ -55,9 +69,11 @@ namespace ForexRateAlerter.Infrastructure.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "CRITICAL: Synthetic engine failure.");
+                    _logger.LogError(ex, "CRITICAL: Synthetic engine cycle failed. Will retry next cycle.");
                 }
             }
+
+            _logger.LogInformation("Synthetic Exchange Rate Engine STOPPED.");
         }
 
         private async Task SyncAndCalculateRatesAsync(CancellationToken stoppingToken)
@@ -96,9 +112,14 @@ namespace ForexRateAlerter.Infrastructure.Services
                 int historyInserts = 0;
 
                 // 2. Load Current State (For Change Detection)
-                // We load EVERYTHING to minimize DB roundtrips
-                var existingRates = await context.ExchangeRates
-                    .ToDictionaryAsync(r => $"{r.BaseCurrency}-{r.TargetCurrency}", r => r, stoppingToken);
+                // Load the LATEST rate for each pair (handle duplicates from old system)
+                var allRates = await context.ExchangeRates.ToListAsync(stoppingToken);
+                var existingRates = allRates
+                    .GroupBy(r => $"{r.BaseCurrency}-{r.TargetCurrency}")
+                    .ToDictionary(
+                        g => g.Key,
+                        g => g.OrderByDescending(r => r.Timestamp).First()
+                    );
 
                 // 3. Matrix Calculation: O(N^2)
                 // We generate a rate for EVERY permutation of our supported currencies
@@ -204,7 +225,7 @@ namespace ForexRateAlerter.Infrastructure.Services
     {
         public bool Success { get; set; }
         public long Timestamp { get; set; }
-        public string Base { get; set; }
-        public Dictionary<string, decimal> Rates { get; set; }
+        public string Base { get; set; } = string.Empty;
+        public Dictionary<string, decimal> Rates { get; set; } = new();
     }
 }
