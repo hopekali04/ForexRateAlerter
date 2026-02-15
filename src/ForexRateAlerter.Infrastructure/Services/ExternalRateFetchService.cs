@@ -1,6 +1,6 @@
 using ForexRateAlerter.Core.Interfaces;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace ForexRateAlerter.Infrastructure.Services
@@ -17,8 +17,9 @@ namespace ForexRateAlerter.Infrastructure.Services
         private readonly TimeSpan _period = TimeSpan.FromHours(24);
 
         public ExternalRateFetchService(
-            IServiceScopeFactory serviceScopeFactory, 
-            ILogger<ExternalRateFetchService> logger)
+            IServiceScopeFactory serviceScopeFactory,
+            ILogger<ExternalRateFetchService> logger
+        )
         {
             _serviceScopeFactory = serviceScopeFactory;
             _logger = logger;
@@ -38,9 +39,22 @@ namespace ForexRateAlerter.Infrastructure.Services
             using var timer = new PeriodicTimer(_period);
 
             // Initial run
-            await FetchExternalRatesAsync(stoppingToken);
+            try
+            {
+                await FetchExternalRatesAsync(stoppingToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "CRITICAL: External rate fetch initial run failed. Will retry in 24h."
+                );
+            }
 
-            while (await timer.WaitForNextTickAsync(stoppingToken) && !stoppingToken.IsCancellationRequested)
+            while (
+                await timer.WaitForNextTickAsync(stoppingToken)
+                && !stoppingToken.IsCancellationRequested
+            )
             {
                 try
                 {
@@ -48,7 +62,10 @@ namespace ForexRateAlerter.Infrastructure.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "CRITICAL: External rate fetch cycle failed. Will retry in 24h.");
+                    _logger.LogError(
+                        ex,
+                        "CRITICAL: External rate fetch cycle failed. Will retry in 24h."
+                    );
                 }
             }
 
@@ -58,21 +75,26 @@ namespace ForexRateAlerter.Infrastructure.Services
         private async Task FetchExternalRatesAsync(CancellationToken stoppingToken)
         {
             using var scope = _serviceScopeFactory.CreateScope();
-            var exchangeRateService = scope.ServiceProvider.GetRequiredService<IExchangeRateService>();
+            var exchangeRateService =
+                scope.ServiceProvider.GetRequiredService<IExchangeRateService>();
 
             try
             {
                 _logger.LogInformation("Starting 24h External API Fetch...");
-                
+
                 var success = await exchangeRateService.FetchAndStoreLatestRatesAsync();
-                
+
                 if (success)
                 {
-                    _logger.LogInformation("✅ External API Fetch Complete. Fresh market data stored.");
+                    _logger.LogInformation(
+                        "✅ External API Fetch Complete. Fresh market data stored."
+                    );
                 }
                 else
                 {
-                    _logger.LogWarning("⚠️ External API Fetch returned false. Check API key or network.");
+                    _logger.LogWarning(
+                        "⚠️ External API Fetch returned false. Check API key or network."
+                    );
                 }
             }
             catch (Exception ex)
