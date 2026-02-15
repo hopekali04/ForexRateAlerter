@@ -526,14 +526,20 @@ namespace ForexRateAlerter.Api.Controllers
 
                 if (data?.Success != true || data.Rates == null)
                 {
+                    // Log the full response for server-side diagnostics but don't expose to client
+                    _logger.LogWarning(
+                        "API returned invalid data. Raw response: {RawResponse}",
+                        content
+                    );
                     return BadRequest(
-                        new { error = "API returned invalid data", rawResponse = content }
+                        new { error = "API returned invalid data. Please check server logs." }
                     );
                 }
 
                 var calculatedRates = new List<object>();
 
-                // Matrix Calculation
+                // Matrix Calculation (with USD special handling)
+                const string masterBase = "USD";
                 foreach (var baseSym in _apiSettings.SupportedCurrencies)
                 {
                     foreach (var targetSym in _apiSettings.SupportedCurrencies)
@@ -541,25 +547,32 @@ namespace ForexRateAlerter.Api.Controllers
                         if (baseSym == targetSym)
                             continue;
 
-                        if (
-                            data.Rates.TryGetValue(baseSym, out decimal usdToBaseRate)
-                            && data.Rates.TryGetValue(targetSym, out decimal usdToTargetRate)
-                        )
-                        {
-                            if (usdToBaseRate == 0)
-                                continue;
+                        // Handle USD explicitly since it won't be in the rates dictionary when USD is the base
+                        decimal usdToBaseRate;
+                        if (baseSym == masterBase)
+                            usdToBaseRate = 1m;
+                        else if (!data.Rates.TryGetValue(baseSym, out usdToBaseRate))
+                            continue;
 
-                            decimal calculatedRate = Math.Round(usdToTargetRate / usdToBaseRate, 6);
+                        decimal usdToTargetRate;
+                        if (targetSym == masterBase)
+                            usdToTargetRate = 1m;
+                        else if (!data.Rates.TryGetValue(targetSym, out usdToTargetRate))
+                            continue;
 
-                            calculatedRates.Add(
-                                new
-                                {
-                                    Pair = $"{baseSym}/{targetSym}",
-                                    Method = $"({usdToTargetRate} / {usdToBaseRate})",
-                                    Rate = calculatedRate,
-                                }
-                            );
-                        }
+                        if (usdToBaseRate == 0)
+                            continue;
+
+                        decimal calculatedRate = Math.Round(usdToTargetRate / usdToBaseRate, 6);
+
+                        calculatedRates.Add(
+                            new
+                            {
+                                Pair = $"{baseSym}/{targetSym}",
+                                Method = $"({usdToTargetRate} / {usdToBaseRate})",
+                                Rate = calculatedRate,
+                            }
+                        );
                     }
                 }
 
