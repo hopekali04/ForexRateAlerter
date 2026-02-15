@@ -23,6 +23,29 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 // Register HttpClient
 builder.Services.AddHttpClient();
+builder.Services.AddHttpClient("FxRatesApi", (serviceProvider, client) =>
+{
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    var baseUrl = configuration["fxapi:BaseUrl"];
+    
+    if (string.IsNullOrWhiteSpace(baseUrl))
+    {
+        throw new InvalidOperationException(
+            "Configuration value 'fxapi:BaseUrl' is required but was not found or is empty.");
+    }
+    
+    if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri))
+    {
+        throw new InvalidOperationException(
+            $"Configuration value 'fxapi:BaseUrl' must be a valid absolute URI. Received: '{baseUrl}'");
+    }
+    
+    client.BaseAddress = uri;
+});
+
+// Configure Settings
+builder.Services.Configure<ForexRateAlerter.Core.Models.ExternalApiSettings>(
+    builder.Configuration.GetSection("fxapi"));
 
 // Register application services
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -32,8 +55,14 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IExchangeRateHistoryService, ExchangeRateHistoryService>();
 
 // Register background services
+// Alert monitoring (every hour)
 builder.Services.AddHostedService<AlertBackgroundService>();
-builder.Services.AddHostedService<ExchangeRateCollectorService>();
+
+// Synthetic rate calculation via triangular arbitrage (every hour)
+builder.Services.AddHostedService<ExchangeRateSyncService>();
+
+// External API baseline fetch from exchangerate-api.com (every 24 hours)
+builder.Services.AddHostedService<ExternalRateFetchService>();
 
 // Configure JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -66,8 +95,8 @@ builder.Services.AddSwaggerGen(c =>
         Description = "A comprehensive Forex Rate Alerting system with real-time notifications",
         Contact = new OpenApiContact
         {
-            Name = "Support Team",
-            Email = "support@forexalerter.com"
+            Name = "Hope Kali",
+            Email = "hopekali.devspace@gmail.com"
         }
     });
 

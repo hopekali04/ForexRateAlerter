@@ -69,19 +69,20 @@
                 </select>
               </div>
 
+
               <!-- Condition -->
               <div>
                 <label class="block font-sans text-xs font-bold text-blueprint-text uppercase mb-2">
                   Trigger Condition
                 </label>
                 <select 
-                  v-model="formData.condition"
+                  v-model.number="formData.condition"
                   class="w-full px-4 py-3 border border-blueprint-border bg-blueprint-surface text-blueprint-text font-sans text-sm focus:outline-none focus:border-2 focus:border-blueprint-primary"
                   required
                 >
-                  <option value="1">GREATER THAN (>)</option>
-                  <option value="2">LESS THAN (<)</option>
-                  <option value="3">EQUAL TO (=)</option>
+                  <option :value="1">GREATER THAN (>)</option>
+                  <option :value="2">LESS THAN (<)</option>
+                  <option :value="3">EQUAL TO (=)</option>
                 </select>
               </div>
 
@@ -99,7 +100,10 @@
                   class="w-full px-4 py-3 border border-blueprint-border bg-blueprint-surface text-blueprint-text font-mono text-sm focus:outline-none focus:border-2 focus:border-blueprint-primary"
                   required
                 />
-                <p class="font-sans text-xs text-blueprint-text-secondary mt-1">Enter rate with up to 4 decimal places</p>
+                <p v-if="currentRateDisplay" class="font-sans text-xs text-blueprint-primary font-bold mt-1">
+                  Current Rate: {{ currentRateDisplay }}
+                </p>
+                <p v-else class="font-sans text-xs text-blueprint-text-secondary mt-1">Enter rate with up to 4 decimal places</p>
               </div>
             </div>
 
@@ -141,7 +145,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
+import { useExchangeStore } from '@/stores/exchange';
 
 export interface AlertFormData {
   baseCurrency: string;
@@ -169,6 +174,8 @@ const emit = defineEmits<{
   'submit': [data: AlertFormData]
 }>();
 
+const exchangeStore = useExchangeStore();
+
 // ISO 4217 Major Currencies
 const currencies = [
   'USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD',
@@ -180,18 +187,33 @@ const currencies = [
 const formData = ref<AlertFormData>({
   baseCurrency: '',
   targetCurrency: '',
-  condition: '1',
+  condition: 1, // Default as number
   targetRate: null,
   isActive: true,
 });
 
 const isSubmitting = ref(false);
 
+const currentRateDisplay = computed(() => {
+  if (formData.value.baseCurrency && formData.value.targetCurrency) {
+    // const pair = `${formData.value.baseCurrency}/${formData.value.targetCurrency}`;
+    const rate = exchangeStore.rates.find(r => 
+      r.baseCurrency === formData.value.baseCurrency && 
+      r.targetCurrency === formData.value.targetCurrency
+    );
+    if (rate) {
+      return `${rate.rate.toFixed(4)}`;
+    }
+  }
+  return null;
+});
+
 // Watch for initialData when opening in edit mode
 watch(() => props.isOpen, (isOpen) => {
   if (isOpen && props.isEdit && props.initialData) {
     formData.value = { 
       ...props.initialData,
+      condition: parseInt(props.initialData.condition.toString()), // Ensure int
       targetRate: props.initialData.targetRate?.toString() || null 
     };
   } else if (isOpen && !props.isEdit) {
@@ -199,7 +221,7 @@ watch(() => props.isOpen, (isOpen) => {
     formData.value = {
       baseCurrency: '',
       targetCurrency: '',
-      condition: '1',
+      condition: 1,
       targetRate: null,
       isActive: true,
     };
@@ -229,7 +251,7 @@ const closeModal = () => {
     formData.value = {
       baseCurrency: '',
       targetCurrency: '',
-      condition: '1',
+      condition: 1,
       targetRate: null,
       isActive: true,
     };
@@ -250,7 +272,8 @@ const handleSubmit = () => {
   
   emit('submit', {
     ...formData.value,
-    targetRate: parseFloat(rateValue.toString()).toFixed(4), // Ensure 4 decimal precision
+    condition: Number(formData.value.condition), 
+    targetRate: parseFloat(rateValue.toString()),
   });
   // We don't automatically close here in case the parent wants to handle errors
   // But UserDashboardView expects it to close. 

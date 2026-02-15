@@ -1,6 +1,24 @@
 @ForexRateAlerter_HostAddress = http://localhost:5105
+@token = YOUR_JWT_TOKEN_HERE
 
-GET {{ForexRateAlerter_HostAddress}}/weatherforecast/
+### Test: Get Latest Rates
+GET {{ForexRateAlerter_HostAddress}}/api/exchangerate/latest
 Accept: application/json
+Authorization: Bearer {{token}}
+
+### Test: Get Enriched Rates
+GET {{ForexRateAlerter_HostAddress}}/api/exchangerate/latest-enriched
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### Test: Get Top Movers (24h)
+GET {{ForexRateAlerter_HostAddress}}/api/exchangerate/top-movers?timeframe=24h&limit=5
+Accept: application/json
+Authorization: Bearer {{token}}
+
+### Test: Refresh Rates (Admin only)
+POST {{ForexRateAlerter_HostAddress}}/api/exchangerate/refresh
+Accept: application/json
+Authorization: Bearer {{token}}
 
 ###

@@ -574,19 +574,6 @@ const closeDeleteModal = () => {
 
 // Submit alert (create or update)
 // Map numeric condition to string enum
-const mapCondition = (condition: string | number): 'GreaterThan' | 'LessThan' | 'EqualTo' => {
-  const conditionStr = String(condition);
-  const conditionMap: Record<string, 'GreaterThan' | 'LessThan' | 'EqualTo'> = {
-    '1': 'GreaterThan',
-    '2': 'LessThan',
-    '3': 'EqualTo',
-    'GreaterThan': 'GreaterThan',
-    'LessThan': 'LessThan',
-    'EqualTo': 'EqualTo',
-  };
-  return conditionMap[conditionStr] || 'GreaterThan';
-};
-
 const handleAlertSubmit = async (data: AlertFormData) => {
   if (submitting.value) return;
 
@@ -596,7 +583,7 @@ const handleAlertSubmit = async (data: AlertFormData) => {
     if (isEditMode.value && editingAlertId.value) {
       // Update existing alert
       const updateData = {
-        condition: mapCondition(data.condition),
+        condition: Number(data.condition),
         targetRate: parseFloat(data.targetRate!.toString()),
         isActive: data.isActive,
       };
@@ -606,7 +593,7 @@ const handleAlertSubmit = async (data: AlertFormData) => {
       const createData = {
         baseCurrency: data.baseCurrency,
         targetCurrency: data.targetCurrency,
-        condition: mapCondition(data.condition),
+        condition: Number(data.condition),
         targetRate: parseFloat(data.targetRate!.toString()),
       };
       await createAlertAPI(createData);

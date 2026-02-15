@@ -382,10 +382,10 @@ onMounted(() => {
   initChart();
   fetchChartData();
 
-  // Auto-refresh every 60 seconds
+  // Auto-refresh every 5 minutes
   refreshInterval = window.setInterval(() => {
     fetchChartData();
-  }, 60000);
+  }, 300000);
 });
 
 onUnmounted(() => {

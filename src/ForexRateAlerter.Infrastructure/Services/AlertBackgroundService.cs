@@ -19,34 +19,27 @@ namespace ForexRateAlerter.Infrastructure.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            _logger.LogInformation("Alert Monitoring Service Started. Check Interval: {Interval}", _period);
+
+            // Wait for initial startup to complete
+            await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
                     using var scope = _serviceScopeFactory.CreateScope();
-                    var exchangeRateService = scope.ServiceProvider.GetRequiredService<IExchangeRateService>();
                     var alertService = scope.ServiceProvider.GetRequiredService<IAlertService>();
 
-                    _logger.LogInformation("Starting scheduled forex rate update and alert processing");
+                    _logger.LogInformation("Starting scheduled alert check");
 
-                    // Fetch latest exchange rates
-                    var ratesFetched = await exchangeRateService.FetchAndStoreLatestRatesAsync();
-                    if (ratesFetched)
-                    {
-                        _logger.LogInformation("Successfully updated exchange rates");
-
-                        // Process alerts
-                        var alertsProcessed = await alertService.ProcessAlertsAsync();
-                        _logger.LogInformation($"Processed {alertsProcessed} alerts");
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Failed to fetch exchange rates");
-                    }
+                    // Process alerts (rates are now managed by ExchangeRateSyncService)
+                    var alertsProcessed = await alertService.ProcessAlertsAsync();
+                    _logger.LogInformation("Processed {AlertCount} alerts", alertsProcessed);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error in alert background service");
+                    _logger.LogError(ex, "Error in alert monitoring service");
                 }
 
                 await Task.Delay(_period, stoppingToken);

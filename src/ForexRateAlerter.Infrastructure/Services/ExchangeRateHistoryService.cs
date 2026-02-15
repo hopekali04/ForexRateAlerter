@@ -16,7 +16,8 @@ public class ExchangeRateHistoryService : IExchangeRateHistoryService
     public ExchangeRateHistoryService(
         ApplicationDbContext context,
         IExchangeRateService exchangeRateService,
-        ILogger<ExchangeRateHistoryService> logger)
+        ILogger<ExchangeRateHistoryService> logger
+    )
     {
         _context = context;
         _exchangeRateService = exchangeRateService;
@@ -43,18 +44,22 @@ public class ExchangeRateHistoryService : IExchangeRateHistoryService
             // Store each rate in history table
             foreach (var rate in currentRates)
             {
-                _context.ExchangeRateHistory.Add(new Core.Models.ExchangeRateHistory
-                {
-                    BaseCurrency = rate.BaseCurrency,
-                    TargetCurrency = rate.TargetCurrency,
-                    Rate = rate.Rate,
-                    CreatedAt = timestamp,
-                    Source = ExchangeRateApiSource
-                });
+                _context.ExchangeRateHistory.Add(
+                    new Core.Models.ExchangeRateHistory
+                    {
+                        BaseCurrency = rate.BaseCurrency,
+                        TargetCurrency = rate.TargetCurrency,
+                        Rate = rate.Rate,
+                        CreatedAt = timestamp,
+                        Source = ExchangeRateApiSource,
+                    }
+                );
             }
 
             var savedCount = await _context.SaveChangesAsync();
-            _logger.LogInformation($"Stored {savedCount} exchange rate snapshots at {timestamp:yyyy-MM-dd HH:mm:ss} UTC");
+            _logger.LogInformation(
+                $"Stored {savedCount} exchange rate snapshots at {timestamp:yyyy-MM-dd HH:mm:ss} UTC"
+            );
         }
         catch (Exception ex)
         {
@@ -73,30 +78,26 @@ public class ExchangeRateHistoryService : IExchangeRateHistoryService
                 "24h" => DateTime.UtcNow.AddHours(-24),
                 "7d" => DateTime.UtcNow.AddDays(-7),
                 "30d" => DateTime.UtcNow.AddDays(-30),
-                _ => DateTime.UtcNow.AddHours(-24)
+                _ => DateTime.UtcNow.AddHours(-24),
             };
 
-            _logger.LogInformation($"Fetching top {limit} movers for timeframe: {timeframe} (since {lookbackTime:yyyy-MM-dd HH:mm:ss} UTC)");
+            _logger.LogInformation(
+                $"Fetching top {limit} movers for timeframe: {timeframe} (since {lookbackTime:yyyy-MM-dd HH:mm:ss} UTC)"
+            );
 
-            // Query historical data
-            var ratesInPeriod = await _context.ExchangeRateHistory
-                .Where(r => r.CreatedAt >= lookbackTime)
+            // Query historical data - use database-side operations to avoid loading too much into memory
+            var ratesInPeriod = await _context
+                .ExchangeRateHistory.Where(r => r.CreatedAt >= lookbackTime)
                 .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
+                .Where(g => g.Count() >= 2) // Need at least 2 data points to calculate change
                 .Select(g => new
                 {
                     Pair = $"{g.Key.BaseCurrency}/{g.Key.TargetCurrency}",
-                    LatestRate = g.OrderByDescending(r => r.CreatedAt).FirstOrDefault()!.Rate,
-                    OldestRate = g.OrderBy(r => r.CreatedAt).FirstOrDefault()!.Rate,
-                    DataPoints = g.Count()
+                    LatestRate = g.OrderByDescending(r => r.CreatedAt).First().Rate,
+                    OldestRate = g.OrderBy(r => r.CreatedAt).First().Rate,
+                    DataPoints = g.Count(),
                 })
-                .Where(x => x.DataPoints >= 2) // Need at least 2 data points to calculate change
                 .ToListAsync();
-
-            if (!ratesInPeriod.Any())
-            {
-                _logger.LogWarning($"No historical data available for timeframe: {timeframe}");
-                return Enumerable.Empty<TopMoverDto>();
-            }
 
             // Calculate percentage changes
             var topMovers = ratesInPeriod
@@ -105,16 +106,78 @@ public class ExchangeRateHistoryService : IExchangeRateHistoryService
                     Pair = r.Pair,
                     LatestRate = r.LatestRate,
                     OldestRate = r.OldestRate,
-                    ChangePercent = r.OldestRate != 0
-                        ? ((r.LatestRate - r.OldestRate) / r.OldestRate) * 100
-                        : 0,
-                    Direction = r.LatestRate > r.OldestRate ? "up" : r.LatestRate < r.OldestRate ? "down" : "unchanged"
+                    ChangePercent =
+                        r.OldestRate != 0
+                            ? ((r.LatestRate - r.OldestRate) / r.OldestRate) * 100
+                            : 0,
+                    Direction =
+                        r.LatestRate > r.OldestRate ? "up"
+                        : r.LatestRate < r.OldestRate ? "down"
+                        : "unchanged",
                 })
+                .Where(m => m.ChangePercent != 0) // Filter out pairs with 0% change
                 .OrderByDescending(m => Math.Abs(m.ChangePercent))
                 .Take(limit)
                 .ToList();
 
-            _logger.LogInformation($"Found {topMovers.Count} top movers for {timeframe}");
+            // If we have movers, return them
+            if (topMovers.Any())
+            {
+                _logger.LogInformation(
+                    $"Found {topMovers.Count} top movers from ExchangeRateHistory"
+                );
+                return topMovers;
+            }
+
+            _logger.LogWarning(
+                "ExchangeRateHistory has data but all pairs have 0% change. Falling back to ExchangeRates table."
+            );
+
+            // Fallback: Use ExchangeRates table (more frequent updates)
+            _logger.LogInformation("Using ExchangeRates table as fallback for top movers");
+
+            // Perform grouping and aggregation on database side to avoid loading entire window into memory
+            var fallbackRates = await _context
+                .ExchangeRates.Where(r => r.Timestamp >= lookbackTime)
+                .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
+                .Where(g => g.Count() >= 2) // Need at least 2 data points
+                .Select(g => new
+                {
+                    Pair = g.Key.BaseCurrency + "/" + g.Key.TargetCurrency,
+                    LatestRate = g.OrderByDescending(r => r.Timestamp).First().Rate,
+                    OldestRate = g.OrderBy(r => r.Timestamp).First().Rate,
+                })
+                .ToListAsync();
+
+            if (!fallbackRates.Any())
+            {
+                _logger.LogWarning("No data in ExchangeRates table either");
+                return Enumerable.Empty<TopMoverDto>();
+            }
+
+            topMovers = fallbackRates
+                .Select(r => new TopMoverDto
+                {
+                    Pair = r.Pair,
+                    LatestRate = r.LatestRate,
+                    OldestRate = r.OldestRate,
+                    ChangePercent =
+                        r.OldestRate != 0
+                            ? ((r.LatestRate - r.OldestRate) / r.OldestRate) * 100
+                            : 0,
+                    Direction =
+                        r.LatestRate > r.OldestRate ? "up"
+                        : r.LatestRate < r.OldestRate ? "down"
+                        : "unchanged",
+                })
+                .Where(m => m.ChangePercent != 0)
+                .OrderByDescending(m => Math.Abs(m.ChangePercent))
+                .Take(limit)
+                .ToList();
+
+            _logger.LogInformation(
+                $"Found {topMovers.Count} top movers from ExchangeRates table (fallback)"
+            );
             return topMovers;
         }
         catch (Exception ex)
@@ -124,16 +187,22 @@ public class ExchangeRateHistoryService : IExchangeRateHistoryService
         }
     }
 
-    public async Task<IEnumerable<ExchangeRateDto>> GetHistoricalRatesAsync(string baseCurrency, string targetCurrency, int days = 30)
+    public async Task<IEnumerable<ExchangeRateDto>> GetHistoricalRatesAsync(
+        string baseCurrency,
+        string targetCurrency,
+        int days = 30
+    )
     {
         try
         {
             var fromDate = DateTime.UtcNow.AddDays(-days);
 
-            var history = await _context.ExchangeRateHistory
-                .Where(r => r.BaseCurrency == baseCurrency && 
-                           r.TargetCurrency == targetCurrency && 
-                           r.CreatedAt >= fromDate)
+            var history = await _context
+                .ExchangeRateHistory.Where(r =>
+                    r.BaseCurrency == baseCurrency
+                    && r.TargetCurrency == targetCurrency
+                    && r.CreatedAt >= fromDate
+                )
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
 
@@ -143,12 +212,17 @@ public class ExchangeRateHistoryService : IExchangeRateHistoryService
                 TargetCurrency = h.TargetCurrency,
                 Rate = h.Rate,
                 Timestamp = h.CreatedAt,
-                Source = h.Source
+                Source = h.Source,
             });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get historical rates for {BaseCurrency}/{TargetCurrency}", baseCurrency, targetCurrency);
+            _logger.LogError(
+                ex,
+                "Failed to get historical rates for {BaseCurrency}/{TargetCurrency}",
+                baseCurrency,
+                targetCurrency
+            );
             throw;
         }
     }
