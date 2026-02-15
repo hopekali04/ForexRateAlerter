@@ -135,26 +135,25 @@ public class ExchangeRateHistoryService : IExchangeRateHistoryService
 
             // Fallback: Use ExchangeRates table (more frequent updates)
             _logger.LogInformation("Using ExchangeRates table as fallback for top movers");
-            var allRates = await _context
+
+            // Perform grouping and aggregation on database side to avoid loading entire window into memory
+            var fallbackRates = await _context
                 .ExchangeRates.Where(r => r.Timestamp >= lookbackTime)
+                .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
+                .Where(g => g.Count() >= 2) // Need at least 2 data points
+                .Select(g => new
+                {
+                    Pair = g.Key.BaseCurrency + "/" + g.Key.TargetCurrency,
+                    LatestRate = g.OrderByDescending(r => r.Timestamp).First().Rate,
+                    OldestRate = g.OrderBy(r => r.Timestamp).First().Rate,
+                })
                 .ToListAsync();
 
-            if (!allRates.Any())
+            if (!fallbackRates.Any())
             {
                 _logger.LogWarning("No data in ExchangeRates table either");
                 return Enumerable.Empty<TopMoverDto>();
             }
-
-            var fallbackRates = allRates
-                .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
-                .Where(g => g.Count() >= 2)
-                .Select(g => new
-                {
-                    Pair = $"{g.Key.BaseCurrency}/{g.Key.TargetCurrency}",
-                    LatestRate = g.OrderByDescending(r => r.Timestamp).First().Rate,
-                    OldestRate = g.OrderBy(r => r.Timestamp).First().Rate,
-                })
-                .ToList();
 
             topMovers = fallbackRates
                 .Select(r => new TopMoverDto
