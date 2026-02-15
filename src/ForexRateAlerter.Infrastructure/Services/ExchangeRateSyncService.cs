@@ -54,7 +54,7 @@ namespace ForexRateAlerter.Infrastructure.Services
             {
                 // Initial run (immediate)
                 _logger.LogInformation("Starting INITIAL calculation cycle...");
-                await SyncAndCalculateRatesAsync(stoppingToken);
+                await SyncAndCalculateRatesAsync(stoppingToken, isInitialRun: true);
                 _logger.LogInformation("Initial cycle COMPLETE. Next cycle in {Delay}", _period);
             }
             catch (Exception ex)
@@ -72,7 +72,7 @@ namespace ForexRateAlerter.Infrastructure.Services
             {
                 try
                 {
-                    await SyncAndCalculateRatesAsync(stoppingToken);
+                    await SyncAndCalculateRatesAsync(stoppingToken, isInitialRun: false);
                 }
                 catch (Exception ex)
                 {
@@ -86,7 +86,10 @@ namespace ForexRateAlerter.Infrastructure.Services
             _logger.LogInformation("Synthetic Exchange Rate Engine STOPPED.");
         }
 
-        private async Task SyncAndCalculateRatesAsync(CancellationToken stoppingToken)
+        private async Task SyncAndCalculateRatesAsync(
+            CancellationToken stoppingToken,
+            bool isInitialRun
+        )
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -230,6 +233,7 @@ namespace ForexRateAlerter.Infrastructure.Services
                                 }
                             );
                             updates++;
+                            historyInserts++;
                         }
                     }
                 }
@@ -251,6 +255,10 @@ namespace ForexRateAlerter.Infrastructure.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Detailed Failure in Pricing Engine.");
+                if (isInitialRun)
+                {
+                    throw; // Rethrow on initial run to surface configuration issues
+                }
             }
         }
     }
