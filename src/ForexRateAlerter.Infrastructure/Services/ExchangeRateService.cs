@@ -185,17 +185,34 @@ namespace ForexRateAlerter.Infrastructure.Services
 
                                 if (isChanged)
                                 {
-                                    // Add to ExchangeRates (Current State/Log)
-                                    newRates.Add(
-                                        new ExchangeRate
-                                        {
-                                            BaseCurrency = baseCurrency,
-                                            TargetCurrency = rate.Key,
-                                            Rate = currentRateValue,
-                                            Source = "ExchangeRate-API",
-                                            Timestamp = timestamp,
-                                        }
-                                    );
+                                    // Upsert to ExchangeRates: update existing or add new
+                                    var existingEntity =
+                                        await _context.ExchangeRates.FirstOrDefaultAsync(r =>
+                                            r.BaseCurrency == baseCurrency
+                                            && r.TargetCurrency == rate.Key
+                                        );
+
+                                    if (existingEntity != null)
+                                    {
+                                        // Update existing rate
+                                        existingEntity.Rate = currentRateValue;
+                                        existingEntity.Source = "ExchangeRate-API";
+                                        existingEntity.Timestamp = timestamp;
+                                    }
+                                    else
+                                    {
+                                        // Add new rate
+                                        newRates.Add(
+                                            new ExchangeRate
+                                            {
+                                                BaseCurrency = baseCurrency,
+                                                TargetCurrency = rate.Key,
+                                                Rate = currentRateValue,
+                                                Source = "ExchangeRate-API",
+                                                Timestamp = timestamp,
+                                            }
+                                        );
+                                    }
 
                                     // Add to ExchangeRateHistory (Historical Analysis)
                                     historyRecords.Add(
@@ -208,6 +225,7 @@ namespace ForexRateAlerter.Infrastructure.Services
                                             Source = "ExchangeRate-API",
                                         }
                                     );
+                                    anyChanges = true;
                                 }
                             }
                         }
@@ -215,10 +233,18 @@ namespace ForexRateAlerter.Infrastructure.Services
                         if (newRates.Any())
                         {
                             _context.ExchangeRates.AddRange(newRates);
+                        }
+
+                        if (historyRecords.Any())
+                        {
                             _context.ExchangeRateHistory.AddRange(historyRecords);
-                            anyChanges = true;
+                        }
+
+                        if (anyChanges)
+                        {
                             _logger.LogInformation(
-                                $"Detected {newRates.Count} rate changes for base {baseCurrency}"
+                                "Detected rate changes for base {BaseCurrency}",
+                                baseCurrency
                             );
                         }
                     }
