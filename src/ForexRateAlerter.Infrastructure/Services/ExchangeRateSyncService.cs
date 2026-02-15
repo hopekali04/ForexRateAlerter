@@ -1,12 +1,12 @@
-using System.Text.Json;
 using System.Net.Http;
+using System.Text.Json;
 using ForexRateAlerter.Core.Models;
 using ForexRateAlerter.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.EntityFrameworkCore;
 
 namespace ForexRateAlerter.Infrastructure.Services
 {
@@ -29,7 +29,8 @@ namespace ForexRateAlerter.Infrastructure.Services
             IHttpClientFactory httpClientFactory,
             IServiceScopeFactory scopeFactory,
             IOptions<ExternalApiSettings> apiSettings,
-            ILogger<ExchangeRateSyncService> logger)
+            ILogger<ExchangeRateSyncService> logger
+        )
         {
             _httpClientFactory = httpClientFactory;
             _scopeFactory = scopeFactory;
@@ -42,7 +43,10 @@ namespace ForexRateAlerter.Infrastructure.Services
         {
             _logger.LogInformation("═══════════════════════════════════════════════════════");
             _logger.LogInformation("║ Synthetic Exchange Rate Engine STARTED              ║");
-            _logger.LogInformation("║ Cycle Interval: {Interval}                          ║", _period);
+            _logger.LogInformation(
+                "║ Cycle Interval: {Interval}                          ║",
+                _period
+            );
             _logger.LogInformation("║ Algorithm: Triangular Arbitrage (USD Base)          ║");
             _logger.LogInformation("═══════════════════════════════════════════════════════");
 
@@ -61,7 +65,10 @@ namespace ForexRateAlerter.Infrastructure.Services
 
             using var timer = new PeriodicTimer(_period);
 
-            while (await timer.WaitForNextTickAsync(stoppingToken) && !stoppingToken.IsCancellationRequested)
+            while (
+                await timer.WaitForNextTickAsync(stoppingToken)
+                && !stoppingToken.IsCancellationRequested
+            )
             {
                 try
                 {
@@ -69,7 +76,10 @@ namespace ForexRateAlerter.Infrastructure.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "CRITICAL: Synthetic engine cycle failed. Will retry next cycle.");
+                    _logger.LogError(
+                        ex,
+                        "CRITICAL: Synthetic engine cycle failed. Will retry next cycle."
+                    );
                 }
             }
 
@@ -81,20 +91,21 @@ namespace ForexRateAlerter.Infrastructure.Services
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             var client = _httpClientFactory.CreateClient("FxRatesApi");
-            
+
             // 1. Fetch RAW USD Data (The "Truth" Source)
             // We force USD base because it's the standard interbank peg.
-            const string masterBase = "USD"; 
+            const string masterBase = "USD";
             var currencies = string.Join(",", _apiSettings.SupportedCurrencies);
-            
+
             try
             {
                 _logger.LogInformation("Fetching master pricing feed for {Base}...", masterBase);
-                
+
                 // Construct URL based on docs: /latest?base=USD&currencies=...&resolution=1h&places=6
                 // Note: 'amount' defaults to 1, 'format' defaults to json
-                var url = $"latest?base={masterBase}&currencies={currencies}&resolution=1h&places=6&api_key={_apiSettings.Key}";
-                
+                var url =
+                    $"latest?base={masterBase}&currencies={currencies}&resolution=1h&places=6&api_key={_apiSettings.Key}";
+
                 var response = await client.GetAsync(url, stoppingToken);
                 response.EnsureSuccessStatusCode();
 
@@ -103,22 +114,27 @@ namespace ForexRateAlerter.Infrastructure.Services
 
                 if (data?.Success != true || data.Rates == null)
                 {
-                    _logger.LogWarning("Master feed empty or invalid. Success: {Success}", data?.Success);
+                    _logger.LogWarning(
+                        "Master feed empty or invalid. Success: {Success}",
+                        data?.Success
+                    );
                     return;
                 }
 
                 var timestamp = DateTime.UtcNow;
                 int updates = 0;
                 int historyInserts = 0;
+                bool heartbeatUpdates = false;
 
                 // 2. Load Current State (For Change Detection)
-                // Load the LATEST rate for each pair (handle duplicates from old system)
-                var allRates = await context.ExchangeRates.ToListAsync(stoppingToken);
-                var existingRates = allRates
-                    .GroupBy(r => $"{r.BaseCurrency}-{r.TargetCurrency}")
-                    .ToDictionary(
-                        g => g.Key,
-                        g => g.OrderByDescending(r => r.Timestamp).First()
+                // Use database-side grouping to get only the latest rate for each pair
+                var existingRates = await context
+                    .ExchangeRates.GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
+                    .Select(g => g.OrderByDescending(r => r.Timestamp).First())
+                    .ToDictionaryAsync(
+                        r => $"{r.BaseCurrency}-{r.TargetCurrency}",
+                        r => r,
+                        stoppingToken
                     );
 
                 // 3. Matrix Calculation: O(N^2)
@@ -127,17 +143,26 @@ namespace ForexRateAlerter.Infrastructure.Services
                 {
                     foreach (var targetSym in _apiSettings.SupportedCurrencies)
                     {
-                        if (baseSym == targetSym) continue;
+                        if (baseSym == targetSym)
+                            continue;
 
                         // SAFETY: Check if we have the ingredients
                         // logic: Rate(A->B) = Rate(USD->B) / Rate(USD->A)
-                        if (!data.Rates.TryGetValue(baseSym, out decimal usdToBaseRate) ||
-                            !data.Rates.TryGetValue(targetSym, out decimal usdToTargetRate))
-                        {
+                        // Handle USD explicitly since it won't be in the rates dictionary when USD is the base
+                        decimal usdToBaseRate;
+                        if (baseSym == masterBase)
+                            usdToBaseRate = 1m;
+                        else if (!data.Rates.TryGetValue(baseSym, out usdToBaseRate))
                             continue;
-                        }
 
-                        if (usdToBaseRate == 0) continue; // Divide by zero guard
+                        decimal usdToTargetRate;
+                        if (targetSym == masterBase)
+                            usdToTargetRate = 1m;
+                        else if (!data.Rates.TryGetValue(targetSym, out usdToTargetRate))
+                            continue;
+
+                        if (usdToBaseRate == 0)
+                            continue; // Divide by zero guard
 
                         // FINTECH MANDATE: High precision intermediate calculation
                         // We round to 6 decimals as requested in the API call "places=6" to match input precision
@@ -155,14 +180,16 @@ namespace ForexRateAlerter.Infrastructure.Services
                             {
                                 // A. Add to History (Preserve OLD state in history before updating)
                                 // Actually, standard practice means we log the NEW state to history as a point-in-time snapshot
-                                context.ExchangeRateHistory.Add(new Core.Models.ExchangeRateHistory
-                                {
-                                    BaseCurrency = baseSym,
-                                    TargetCurrency = targetSym,
-                                    Rate = calculatedRate,
-                                    Source = sourceLabel,
-                                    CreatedAt = timestamp
-                                });
+                                context.ExchangeRateHistory.Add(
+                                    new Core.Models.ExchangeRateHistory
+                                    {
+                                        BaseCurrency = baseSym,
+                                        TargetCurrency = targetSym,
+                                        Rate = calculatedRate,
+                                        Source = sourceLabel,
+                                        CreatedAt = timestamp,
+                                    }
+                                );
                                 historyInserts++;
 
                                 // B. Update Latest Reference
@@ -175,6 +202,7 @@ namespace ForexRateAlerter.Infrastructure.Services
                             {
                                 // Heartbeat update
                                 existingEntity.Timestamp = timestamp;
+                                heartbeatUpdates = true;
                             }
                         }
                         else
@@ -186,28 +214,34 @@ namespace ForexRateAlerter.Infrastructure.Services
                                 TargetCurrency = targetSym,
                                 Rate = calculatedRate,
                                 Timestamp = timestamp,
-                                Source = sourceLabel
+                                Source = sourceLabel,
                             };
                             context.ExchangeRates.Add(newRate);
 
                             // Initial history point
-                            context.ExchangeRateHistory.Add(new Core.Models.ExchangeRateHistory
-                            {
-                                BaseCurrency = baseSym,
-                                TargetCurrency = targetSym,
-                                Rate = calculatedRate,
-                                Source = sourceLabel,
-                                CreatedAt = timestamp
-                            });
+                            context.ExchangeRateHistory.Add(
+                                new Core.Models.ExchangeRateHistory
+                                {
+                                    BaseCurrency = baseSym,
+                                    TargetCurrency = targetSym,
+                                    Rate = calculatedRate,
+                                    Source = sourceLabel,
+                                    CreatedAt = timestamp,
+                                }
+                            );
                             updates++;
                         }
                     }
                 }
 
-                if (updates > 0 || historyInserts > 0)
+                if (updates > 0 || historyInserts > 0 || heartbeatUpdates)
                 {
                     await context.SaveChangesAsync(stoppingToken);
-                    _logger.LogInformation("Synthetic Cycle Complete. Updated {UpdateCount} rates. Generated {HistoryCount} history points.", updates, historyInserts);
+                    _logger.LogInformation(
+                        "Synthetic Cycle Complete. Updated {UpdateCount} rates. Generated {HistoryCount} history points.",
+                        updates,
+                        historyInserts
+                    );
                 }
                 else
                 {
