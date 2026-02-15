@@ -82,8 +82,8 @@ builder.Services.AddSwaggerGen(c =>
         Description = "A comprehensive Forex Rate Alerting system with real-time notifications",
         Contact = new OpenApiContact
         {
-            Name = "Support Team",
-            Email = "support@forexalerter.com"
+            Name = "Hope Kali",
+            Email = "hopekali.devspace@gmail.com"
         }
     });
 
