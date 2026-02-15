@@ -27,7 +27,20 @@ builder.Services.AddHttpClient("FxRatesApi", (serviceProvider, client) =>
 {
     var configuration = serviceProvider.GetRequiredService<IConfiguration>();
     var baseUrl = configuration["fxapi:BaseUrl"];
-    client.BaseAddress = new Uri(baseUrl!);
+    
+    if (string.IsNullOrWhiteSpace(baseUrl))
+    {
+        throw new InvalidOperationException(
+            "Configuration value 'fxapi:BaseUrl' is required but was not found or is empty.");
+    }
+    
+    if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri))
+    {
+        throw new InvalidOperationException(
+            $"Configuration value 'fxapi:BaseUrl' must be a valid absolute URI. Received: '{baseUrl}'");
+    }
+    
+    client.BaseAddress = uri;
 });
 
 // Configure Settings
