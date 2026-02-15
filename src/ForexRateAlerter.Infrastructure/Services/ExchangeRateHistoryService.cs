@@ -78,29 +78,22 @@ public class ExchangeRateHistoryService : IExchangeRateHistoryService
 
             _logger.LogInformation($"Fetching top {limit} movers for timeframe: {timeframe} (since {lookbackTime:yyyy-MM-dd HH:mm:ss} UTC)");
 
-            // Query historical data - materialize first to avoid SQL translation issues
-            var allHistoricalRates = await _context.ExchangeRateHistory
+            // Query historical data - use database-side operations to avoid loading too much into memory
+            var ratesInPeriod = await _context.ExchangeRateHistory
                 .Where(r => r.CreatedAt >= lookbackTime)
+                .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
+                .Where(g => g.Count() >= 2) // Need at least 2 data points to calculate change
+                .Select(g => new
+                {
+                    Pair = $"{g.Key.BaseCurrency}/{g.Key.TargetCurrency}",
+                    LatestRate = g.OrderByDescending(r => r.CreatedAt).First().Rate,
+                    OldestRate = g.OrderBy(r => r.CreatedAt).First().Rate,
+                    DataPoints = g.Count()
+                })
                 .ToListAsync();
 
-            List<TopMoverDto> topMovers;
-
-            if (allHistoricalRates.Any())
-            {
-                var ratesInPeriod = allHistoricalRates
-                    .GroupBy(r => new { r.BaseCurrency, r.TargetCurrency })
-                    .Where(g => g.Count() >= 2) // Need at least 2 data points to calculate change
-                    .Select(g => new
-                    {
-                        Pair = $"{g.Key.BaseCurrency}/{g.Key.TargetCurrency}",
-                        LatestRate = g.OrderByDescending(r => r.CreatedAt).First().Rate,
-                        OldestRate = g.OrderBy(r => r.CreatedAt).First().Rate,
-                        DataPoints = g.Count()
-                    })
-                    .ToList();
-
                 // Calculate percentage changes
-                topMovers = ratesInPeriod
+                var topMovers = ratesInPeriod
                     .Select(r => new TopMoverDto
                     {
                         Pair = r.Pair,
@@ -124,7 +117,6 @@ public class ExchangeRateHistoryService : IExchangeRateHistoryService
                 }
                 
                 _logger.LogWarning("ExchangeRateHistory has data but all pairs have 0% change. Falling back to ExchangeRates table.");
-            }
 
             // Fallback: Use ExchangeRates table (more frequent updates)
             _logger.LogInformation("Using ExchangeRates table as fallback for top movers");
