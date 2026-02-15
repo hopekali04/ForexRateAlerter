@@ -45,8 +45,12 @@
       >
         <!-- Clickable Area for Details -->
         <div 
+          role="button"
+          tabindex="0"
           @click="$emit('view-details', mover.pair)"
-          class="cursor-pointer"
+          @keydown.enter="$emit('view-details', mover.pair)"
+          @keydown.space.prevent="$emit('view-details', mover.pair)"
+          class="cursor-pointer focus:outline-none focus:ring-2 focus:ring-blueprint-primary"
         >
           <!-- Currency Pair Label -->
           <div class="flex justify-between items-baseline mb-1">
@@ -70,7 +74,7 @@
               <!-- Alert Button (Stop Propagation to prevent detail view) -->
               <button 
                 @click.stop="$emit('select-pair', mover.pair)"
-                class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-blueprint-bg border border-transparent hover:border-blueprint-border"
+                class="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity p-1 hover:bg-blueprint-bg border border-transparent hover:border-blueprint-border focus:opacity-100"
                 title="Create Alert"
               >
                 <svg class="w-3 h-3 text-blueprint-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">

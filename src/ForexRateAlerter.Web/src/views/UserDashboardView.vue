@@ -385,11 +385,25 @@ const closeAlertModal = () => {
 
 const handleCreateAlert = async (formData: any) => {
   try {
+    // Validate condition
+    const condition = Number(formData.condition);
+    if (!Number.isFinite(condition)) {
+      showToast('Invalid alert condition.', 'error');
+      return;
+    }
+
+    // Validate targetRate
+    const targetRate = parseFloat(formData.targetRate);
+    if (!Number.isFinite(targetRate) || targetRate <= 0) {
+      showToast('Invalid target rate. Please enter a valid positive number.', 'error');
+      return;
+    }
+
     await createAlert({
       baseCurrency: formData.baseCurrency,
       targetCurrency: formData.targetCurrency,
-      condition: Number(formData.condition),
-      targetRate: parseFloat(formData.targetRate),
+      condition: condition,
+      targetRate: targetRate,
     });
     
     showToast(
