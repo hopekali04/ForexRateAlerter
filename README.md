@@ -183,3 +183,103 @@ This project includes a comprehensive documentation suite to provide a deep unde
    ├─── /rates/** ──────────── Exchange Rate Data
    └─── /admin/** ──────────── Admin Dashboard
 ```
+
+---
+
+## Screenshots & User Interface
+
+The Forex Rate Alerter features a clean, modern interface designed with the principles outlined in our architectural standards. All components follow a strict rectangular design (0px border-radius) with high-density data presentation and monospaced typography for numerical values.
+
+### Authentication Flow
+
+#### Sign Up
+Create a new account and join thousands of traders monitoring forex rates.
+
+<img src="./screenshots/auth-register.png" alt="Registration Page - Create Account" width="800" />
+
+#### Sign In
+Secure JWT-based login to access your personalized dashboard.
+
+<img src="./screenshots/auth-login.png" alt="Login Page - Welcome Back" width="800" />
+
+---
+
+### User Dashboard & Rate Monitoring
+
+#### Main Forex Dashboard
+Real-time forex rates with top movers visualization. Shows system status, active alerts, and market performance metrics. The top ticker displays all monitored pairs with live price movements.
+
+<img src="./screenshots/dashboard.png" alt="Forex Dashboard - Top Movers and Active Alerts" width="1000" />
+
+#### Extended Dashboard View
+Interactive market pulse analysis showing 24-hour gainers and losers with volatility index and OHLC candlestick charts.
+
+<img src="./screenshots/dashboard-ext.png" alt="Dashboard Extended - Market Analytics" width="1000" />
+
+#### Exchange Rates Page
+Comprehensive view of all 56 currency pairs with real-time rates, 24-hour statistics (High, Low, Change), and filtering options.
+
+<img src="./screenshots/xchange_rates_page.png" alt="Exchange Rates - All Currency Pairs" width="1000" />
+
+---
+
+### Alert Management
+
+#### Alerts Overview
+Manage all your fx alerts in one centralized location. View active/inactive alerts, trigger history, and quick metrics (Total Alerts, Active, Inactive, Triggered Today).
+
+<img src="./screenshots/alerts_page.png" alt="Alerts Management - Overview and Statistics" width="1000" />
+
+#### Create Alert Dialog
+Configure precise alert conditions with dropdown-driven currency selection (per FinTech standards), trigger conditions, and target rates with validation to 4 decimal places.
+
+<img src="./screenshots/create_alert_form.png" alt="Create Alert - Modal Form" width="700" />
+
+---
+
+### Rate Details & Analysis
+
+#### Rate Information Modal
+Detailed exchange rate data for any currency pair. Displays current rate, 24-hour high/low, opening price, data source, and quick access to create alerts.
+
+<img src="./screenshots/rate_info_dialog.png" alt="Rate Information - Detailed Exchange Data" width="700" />
+
+#### Currency Pair Details with Charting (1 of 2)
+Interactive price charts with multiple timeframes (1m, 5m, 15m, 1h, 1d). Includes 24-hour statistics (Open, High, Low, Close) and integrated currency converter for real-time conversions.
+
+<img src="./screenshots/view_exchangepair.png" alt="Exchange Pair Details - Price Chart and Analytics" width="1000" />
+
+#### Currency Pair Details Extended
+Extended historical analysis with 30-day price charts and currency converter. Shows complete OHLC data and price action trends for informed trading decisions.
+
+<img src="./screenshots/view_exchangepair_ext.png" alt="Exchange Pair Extended - Historical Analysis" width="1000" />
+
+---
+
+### Admin Dashboard
+
+#### Admin Overview
+Comprehensive system dashboard for administrators. Displays total users, alerts, user activity, and popular currency pairs being monitored. Quick access to all management functions.
+
+<img src="./screenshots/admin_dash.png" alt="Admin Dashboard - System Overview" width="1000" />
+
+#### User Management
+Complete user administration interface. View all users with their roles (Admin/User), account status, alert counts, and creation dates. Includes search, filtering, and user action controls.
+
+<img src="./screenshots/user_management.png" alt="User Management - Admin Control Panel" width="1000" />
+
+---
+
+## UI/UX Design Standards
+
+All interfaces follow the established FinTech design principles:
+
+- **Visual Consistency**: Rectangular components (0px border-radius) throughout
+- **Color Palette**: Primary Green (#22C55E), Light Gray Backgrounds (#F8FAFC), Deep Navy Text (#0F172A)
+- **Typography**: 
+  - Monospace fonts (JetBrains Mono/Roboto Mono) for all currency pairs and rates
+  - Clean Sans-serif (Inter) for UI labels and navigation
+- **Data Density**: High-density grids optimized for information density, not whitespace
+- **User Feedback**: Toast notifications for all CRUD operations and async actions
+- **Input Validation**: Front-end validation for UX, back-end validation for security
+- **Responsive Design**: Fully responsive layouts that work seamlessly on desktop and tablet views
