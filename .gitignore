@@ -76,7 +76,7 @@ StyleCopReport.xml
 *.jpe
 *.jpeg
 *.jpg
-*.png
+# *.png
 *.gif
 *.tiff
 *.tif
