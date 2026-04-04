@@ -17,7 +17,7 @@
   "dependencies": {
     "@headlessui/vue": "^1.7.23",
     "@heroicons/vue": "^2.2.0",
-    "axios": "^1.11.0",
+    "axios": "^1.13.5",
     "chart.js": "^4.5.1",
     "jwt-decode": "^4.0.0",
     "lightweight-charts": "^5.1.0",
