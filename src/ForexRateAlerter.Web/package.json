@@ -17,7 +17,7 @@
   "dependencies": {
     "@headlessui/vue": "^1.7.23",
     "@heroicons/vue": "^2.2.0",
-    "axios": "^1.13.5",
+    "axios": "^1.16.0",
     "chart.js": "^4.5.1",
     "jwt-decode": "^4.0.0",
     "lightweight-charts": "^5.1.0",
@@ -37,7 +37,7 @@
     "eslint-plugin-vue": "~10.3.0",
     "jiti": "^2.4.2",
     "npm-run-all2": "^8.0.4",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.15",
     "serve": "^14.2.6",
     "tailwindcss": "^3.4.17",
     "typescript": "~5.8.0",
